@@ -1,26 +1,81 @@
-/**
- * Site header
- */
-.site-header {
-    border-top: 5px solid $grey-color-dark;
-    border-bottom: 1px solid $grey-color-light;
-    min-height: 56px;
+.link-button {
+    background-color: #24292e;
+    border: 2px solid white;
+    border-radius: 2px;
+    text-transform: uppercase;
+    margin-right: 10px;
+    margin-bottom: 15px;
+    padding-left: .3rem;
+    padding-right: .3rem;
+    padding-top: .1rem;
+    padding-bottom: .1rem;
+    box-shadow: 2px 2px 0 white;
+    display: inline-block;
+    .text-button {
+      font-size: 1.1rem;
+      color: white;
+      text-decoration: none;
+    } 
+}
+
+.header {
+    min-height: 20px;
+    padding-top: 10px;
+    position: relative;
+    background-color: #85FFBD;
+    background-image: linear-gradient(45deg, #85FFBD  0%, #FFFB7D 100%);        
+}
+
+.profile-image {
+    background: url("http://estrela.me/img/profile_image.png") no-repeat;
+    background-size: 100% 100%;
+    border: 2px solid white;
+    border-radius: 50%;
+    height: 3rem;
+    width: 3rem;
+    cursor: pointer;
+}
+
+.title {
+    font-size: 1.4rem;
+    margin-bottom: 10px;
+    margin-top: 6px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.bar {
+    background-color: $grey-color-dark;
+    min-height: 40px;
+    padding-top: 15px;
     position: relative;
 }
 
 .name {
+    color: $grey-color-dark;
     font-size: 1.7rem;
     line-height: 2rem;
     text-transform: uppercase;
     margin-bottom: 0;
     margin-top: 0;
     user-select: none;
-  }
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.name:visited {
+    color: white;
+}
+
+.name:hover {
+    text-decoration: none;
+}
   
-.title {
-    display: block;
-    font-size: 1.2rem;
-    margin-right: 1rem;
+.position {
+  text-transform: uppercase;
+  margin-bottom: 0;
+  margin-top: 0;
+  user-select: none;
 }
 
 .site-title {
@@ -41,10 +96,6 @@
     float: right;
     line-height: 56px;
 
-    .menu-icon {
-        display: none;
-    }
-
     .page-link {
         color: $text-color;
         line-height: $base-line-height;
@@ -63,25 +114,6 @@
         border: 1px solid $grey-color-light;
         border-radius: 5px;
         text-align: right;
-
-        .menu-icon {
-            display: block;
-            float: right;
-            width: 36px;
-            height: 26px;
-            line-height: 0;
-            padding-top: 10px;
-            text-align: center;
-
-            > svg {
-                width: 18px;
-                height: 15px;
-
-                path {
-                    fill: $grey-color-dark;
-                }
-            }
-        }
 
         .trigger {
             clear: both;
@@ -181,11 +213,7 @@
  * Page content
  */
 .page-content {
-    padding: $spacing-unit 0;
-}
-
-.page-heading {
-    font-size: 20px;
+    padding: 15px;
 }
 
 .post-list {
@@ -198,13 +226,15 @@
 }
 
 .post-meta {
-    font-size: $small-font-size;
+    font-size: 2rem;
     color: $grey-color;
 }
 
 .post-link {
     display: block;
-    font-size: 24px;
+    font-size: 2rem;
+    text-transform: uppercase;
+    font-style: oblique;
 }
 
 
@@ -214,12 +244,14 @@
  */
 .post-header {
     margin-bottom: $spacing-unit;
+    margin-top: $spacing-unit / 2;
 }
 
 .post-title {
     font-size: 42px;
     letter-spacing: -1px;
     line-height: 1;
+    text-transform: uppercase;
 
     @include media-query($on-laptop) {
         font-size: 36px;
@@ -227,7 +259,7 @@
 }
 
 .post-content {
-    margin-bottom: $spacing-unit;
+    font-family: 'Open Sans', sans-serif;
 
     h2 {
         font-size: 32px;
@@ -252,4 +284,8 @@
             font-size: 18px;
         }
     }
+}
+
+.copyright {
+    text-transform: uppercase;
 }

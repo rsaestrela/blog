@@ -1,13 +1,7 @@
-title: ESTRELA.ME
+title: estrela.me * blog
 email: rsaestrela@gmail.com
-description: > # this means to ignore newlines until "baseurl:"
-  Write an awesome description for your new site here. You can edit this
-  line in _config.yml. It will appear in your document head meta (for
-  Google search results) and in your feed.xml site description.
-baseurl: ""
-url: "http://blog.estrela.me" # the base hostname & protocol for your site
-twitter_username:
-github_username:  rsaestrela
-
-# Build settings
+description: "@rsaestrela raul estrela personal blog"
+baseurl: /blog
+url: "https://estrela.me"
 markdown: kramdown
+exclude: [vendor]
