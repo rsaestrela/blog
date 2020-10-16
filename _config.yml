@@ -5,3 +5,4 @@ baseurl: /blog
 url: "https://estrela.me"
 markdown: kramdown
 exclude: [vendor]
+google_analytics: "UA-180685972-1"
