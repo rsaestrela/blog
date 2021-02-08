@@ -1,0 +1,622 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>estrela.me * blog</title>
+    <description>@rsaestrela raul estrela personal blog</description>
+    <link>https://estrela.me/blog/</link>
+    <atom:link href="https://estrela.me/blog/feed.xml" rel="self" type="application/rss+xml"/>
+    <pubDate>Mon, 08 Feb 2021 00:15:47 +0000</pubDate>
+    <lastBuildDate>Mon, 08 Feb 2021 00:15:47 +0000</lastBuildDate>
+    <generator>Jekyll v3.1.6</generator>
+    
+      <item>
+        <title>GitHub Actions &amp; Java - Part 1</title>
+        <description>&lt;p&gt;This is the first of a series of articles where I’m relating my experience with GitHub Actions, building and deploying Java microservices to production. In each article, I’m focusing on the key aspects of the framework and how we can take advantage of its features in the different phases that a Java CI/CD pipeline expects. The rest, you can easily find out in the &lt;a href=&quot;https://docs.github.com/en/actions&quot;&gt;official GitHub Actions documentation&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;why-github-actions&quot;&gt;Why GitHub Actions?&lt;/h3&gt;
+
+&lt;p&gt;As a Java developer coding and delivering software for a few years, I consider that working on a Continuous Integration and Deployment (CI/CD) environment is one of the most pleasant experiences in day-to-day work. With the right automation, repetitive and erroneous manual tasks can be avoided and everyone is able to focus more on what’s important. The workspace becomes much more efficient, clever and an exciting place to be.&lt;/p&gt;
+
+&lt;p&gt;Developing and maintaining all this magic is not usually at first. I’ve worked with a few CI/CD systems such as Jenkins, Bamboo (and more recently with GitLab), and I always felt a big gap between the required core skills for our day-to-day tasks and the ones to deal with these systems. The industry that cultivated for so long the &lt;em&gt;DevOps&lt;/em&gt; concept, quickly evolved to a &lt;em&gt;NoOps&lt;/em&gt; standard that apparently became to stay.&lt;/p&gt;
+
+&lt;p&gt;I always enjoyed to build CI/CD pipelines - playing with Jenkins back and forward, configuring steps in jobs, that called other jobs, and with some shell script and tools/plugins on top, something supposed to happen at the end, usually happened. A few months ago, I had a job in hand to set up a CI pipeline for a few projects where Jenkins was not an option. These projects were hosted on GitHub and the first thing that came to my mind was to use Travis or CircleCI (from my experience in open-source projects). Someone told that we could try GitHub Actions. After reading the docs and giving a try, I just realized  - Shit, finally a decent &lt;em&gt;NoOps&lt;/em&gt; solution for every developer. If the same is happening to you, have a look on this article from GitHub on how to &lt;a href=&quot;https://docs.github.com/en/actions/learn-github-actions/migrating-from-jenkins-to-github-actions&quot;&gt;Migrate from Jenkins to GitHub Actions&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;In the next sections I’ll explain how to build a Java project that has a JAR artifact as an outcome.&lt;/p&gt;
+
+&lt;h3 id=&quot;setup--build&quot;&gt;Setup &amp;amp; Build&lt;/h3&gt;
+
+&lt;p&gt;First things first. GitHub Actions is a decentralized system - this means that in opposition to systems like Jenkins that all the configuration is in a single place, with GitHub Actions all the configuration will be hosted in the project repository. This doesn’t sound something new, but I wouldn’t expect anything else nowadays where cross-functional teams own projects and are responsible for the full development life-cycle.&lt;/p&gt;
+
+&lt;p&gt;In GitHub Actions, regular CI &lt;em&gt;jobs&lt;/em&gt; are called &lt;code class=&quot;highlighter-rouge&quot;&gt;workflows&lt;/code&gt; that are triggered by &lt;code class=&quot;highlighter-rouge&quot;&gt;events&lt;/code&gt; and contain &lt;code class=&quot;highlighter-rouge&quot;&gt;jobs&lt;/code&gt; . A job can define multiple &lt;code class=&quot;highlighter-rouge&quot;&gt;steps&lt;/code&gt; that run &lt;strong&gt;Actions&lt;/strong&gt;. Simple, right? For more information on how to get started, check the &lt;a href=&quot;https://docs.github.com/en/actions/quickstart&quot;&gt;official documentation&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;To demonstrate some of the functionalities of GitHub Actions I just developed a &lt;a href=&quot;https://github.com/rsaestrela/vertx-java-ms&quot;&gt;nonsense Java microservice&lt;/a&gt; with &lt;a href=&quot;https://vertx.io/&quot;&gt;Vert.x&lt;/a&gt; (it could have been with Spring or anything else).  The only important points for now is that this service is built with Maven, uses a PostgreSQL database and runs Flyway migrations.&lt;/p&gt;
+
+&lt;h4 id=&quot;workflow&quot;&gt;Workflow&lt;/h4&gt;
+
+&lt;p&gt;This is the workflow created to build the project when there’s a push branch &lt;code class=&quot;highlighter-rouge&quot;&gt;main&lt;/code&gt;. Additionally, GitHub Actions allows us to define different ways to trigger workflows. One of them is &lt;code class=&quot;highlighter-rouge&quot;&gt;workflow_dispatch&lt;/code&gt;. This item was left empty just to allow triggering the job &lt;a href=&quot;https://docs.github.com/en/actions/managing-workflow-runs/manually-running-a-workflow&quot;&gt;manually&lt;/a&gt; without any parameter. There are multiple ways of triggering workflows being the &lt;code class=&quot;highlighter-rouge&quot;&gt;workflow_dispatch&lt;/code&gt;or &lt;code class=&quot;highlighter-rouge&quot;&gt;repository_dispatch&lt;/code&gt; (not included in this article) probably the most complex but interesting ones. For more information on this topic check the &lt;a href=&quot;https://docs.github.com/en/actions/reference/events-that-trigger-workflows&quot;&gt;official documentation&lt;/a&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;language-yaml highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;s&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;build-main&lt;/span&gt;
+&lt;span class=&quot;s&quot;&gt;on&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+  &lt;span class=&quot;s&quot;&gt;push&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;s&quot;&gt;branches&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+      &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;main&lt;/span&gt;
+    &lt;span class=&quot;s&quot;&gt;workflow_dispatch&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+&lt;span class=&quot;s&quot;&gt;jobs&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+  &lt;span class=&quot;s&quot;&gt;build&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;s&quot;&gt;runs-on&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;ubuntu-latest&lt;/span&gt;
+    &lt;span class=&quot;s&quot;&gt;services&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+      &lt;span class=&quot;s&quot;&gt;postgres&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;s&quot;&gt;image&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;postgres&lt;/span&gt;
+        &lt;span class=&quot;s&quot;&gt;env&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+          &lt;span class=&quot;s&quot;&gt;POSTGRES_DB&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;vertxbroker&lt;/span&gt;
+          &lt;span class=&quot;s&quot;&gt;POSTGRES_USER&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;admin&lt;/span&gt;
+          &lt;span class=&quot;s&quot;&gt;POSTGRES_PASSWORD&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;admin&lt;/span&gt;
+        &lt;span class=&quot;s&quot;&gt;options&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;pi&quot;&gt;&amp;gt;-&lt;/span&gt;
+          &lt;span class=&quot;no&quot;&gt;--health-cmd pg_isready&lt;/span&gt;
+          &lt;span class=&quot;no&quot;&gt;--health-interval 10s&lt;/span&gt;
+          &lt;span class=&quot;no&quot;&gt;--health-timeout 5s&lt;/span&gt;
+          &lt;span class=&quot;no&quot;&gt;--health-retries 5&lt;/span&gt;
+        &lt;span class=&quot;no&quot;&gt;ports:&lt;/span&gt;
+          &lt;span class=&quot;no&quot;&gt;- 5455:5432&lt;/span&gt;
+    &lt;span class=&quot;s&quot;&gt;steps&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+      &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;uses&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;actions/checkout@v2&lt;/span&gt;
+      &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;uses&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;actions/setup-java@v1&lt;/span&gt;
+        &lt;span class=&quot;s&quot;&gt;with&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+          &lt;span class=&quot;s&quot;&gt;java-version&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;11&lt;/span&gt;
+          &lt;span class=&quot;s&quot;&gt;java-package&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;jdk&lt;/span&gt;
+          &lt;span class=&quot;s&quot;&gt;architecture&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;x64&lt;/span&gt;
+      &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;id&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;build&lt;/span&gt;
+        &lt;span class=&quot;s&quot;&gt;run&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;mvn verify&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;setup-dependencies&quot;&gt;Setup Dependencies&lt;/h4&gt;
+
+&lt;p&gt;As mentioned before, workflows are simply containers of jobs. Jobs are virtually executed in an OS hosted in a… container. A job must define a &lt;a href=&quot;https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions?query=runs-on#jobsjob_idruns-on&quot;&gt;runs-on&lt;/a&gt; configuration that specifies the OS used in this instance and may specify a list of &lt;a href=&quot;https://docs.github.com/es/actions/guides/about-service-containers&quot;&gt;service containers&lt;/a&gt; - services that will be installed in the system. In this project, a &lt;code class=&quot;highlighter-rouge&quot;&gt;postgres&lt;/code&gt; service was defined to spin a PostgreSQL database necessary to build the project (and eventually execute integration tests using it).  There are a few different types of service containers &lt;a href=&quot;https://github.com/actions/example-services&quot;&gt;available&lt;/a&gt; for these purposes.&lt;/p&gt;
+
+&lt;h4 id=&quot;just-build-it&quot;&gt;Just build it!&lt;/h4&gt;
+
+&lt;p&gt;With all the dependencies set, only 3 &lt;code class=&quot;highlighter-rouge&quot;&gt;steps&lt;/code&gt; must be defined within this job to build the project. This is where things get interesting. Actions aren’t just triggers developed by GitHub. Everyone in GitHub (including yourself) can build actions, which means that you can find an action for almost everything (&lt;a href=&quot;https://youtu.be/gwZ81gJRSuQ?t=72&quot;&gt;just keep it simple&lt;/a&gt;). A GitHub Action is specified to be executed in each step:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;actions/checkout - gets the the Git repository&lt;/li&gt;
+  &lt;li&gt;actions/setup-java - installs JDK 11 for x64 and a few Java based tools, like Maven&lt;/li&gt;
+  &lt;li&gt;custom action &lt;strong&gt;build&lt;/strong&gt; - runs whatever we want. In this case, it’s just triggering a Maven execution.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;And that’s it for now. After running &lt;code class=&quot;highlighter-rouge&quot;&gt;maven verify&lt;/code&gt; a JAR binary should be built and made available in the &lt;em&gt;target&lt;/em&gt; folder.&lt;/p&gt;
+
+&lt;p&gt;Without having to set up any CI tool or to master any GUI / complex DevOps configuration setup, GitHub gives &lt;em&gt;ootb&lt;/em&gt; all this functionality in an extensible and free to use framework that in my opinion (and thanks to GitHub popularity) will set a new standard in the industry and it will reinforce even more the brand. I don’t think that Jenkins or any other powerful  CI/CD platform will be abandoned sooner, but if the Git product I’m adopting already gives me this functionality, why should I care about adding more tools and complexity to an CI/CD environment that should be easy to understand and maintain? At this stage, this might sound an overrated opinion about GitHub Actions - but believe me, as I’ll show you in the next articles or this series, GitHub seems able to cover almost all the functionalities needed in a CI/CD system, at least for the most common use cases.&lt;/p&gt;
+
+&lt;p&gt;All the source code presented can be found in this &lt;a href=&quot;https://github.com/rsaestrela/vertx-java-ms&quot;&gt;GitHub repository&lt;/a&gt;.&lt;/p&gt;
+</description>
+        <pubDate>Sat, 30 Jan 2021 00:00:00 +0000</pubDate>
+        <link>https://estrela.me/blog/java/2021/01/30/github-actions-and-java-p1.html</link>
+        <guid isPermaLink="true">https://estrela.me/blog/java/2021/01/30/github-actions-and-java-p1.html</guid>
+        
+        
+        <category>java</category>
+        
+      </item>
+    
+      <item>
+        <title>Type Inference in Java</title>
+        <description>&lt;p&gt;Type inference is a technique used by statically typed languages, where the compiler infers the types of variables using the context where they are declared. Programming languages with sophisticated type systems tend to rely more on type inference to improve the readability of the code. For some, this proved to produce more concise code and increase productivity by adding some fun and less typing. Others might feel it’s worse because it removes useful information from the code and that makes it less maintainable. There are multiple opinions about it, but the truth is that writing without explicitly specifying types is trending up. There are some good examples of JVM languages with improved type systems that do this amazingly well (Groovy, Scala and more recently Kotlin), but it’s worth to note how type inference has been evolving in Java and to give an update on the latest features.&lt;/p&gt;
+
+&lt;h3 id=&quot;javas-type-inference-system&quot;&gt;Java’s Type Inference System&lt;/h3&gt;
+
+&lt;p&gt;As a traditional programming language, the Java type inference system has been evolving quite slowly in the last years. Although, Java always provided a very basic form type inference since the first version expressed by one of its main OOP features: inheritance. The subclassing mechanism is natively supported by a subtyping inference on classes.&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;Object&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sport&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;football&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// sport is a String&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;This very basic form of type inference was considerably improved in Java 5, when generic methods were introduced. The type inference system was then capable of inferring parameterized classes (type constructors), subtyping extension and wildcards. For example, instead of:&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sports&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Arrays&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;asList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;football&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;tennis&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Since &lt;code class=&quot;highlighter-rouge&quot;&gt;asList&lt;/code&gt; implements generics and returns a generic type &lt;code class=&quot;highlighter-rouge&quot;&gt;List&amp;lt;T&amp;gt;&lt;/code&gt;, this type declaration can be easily inferred be the compiler:&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sports&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Arrays&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;asList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;football&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;tennis&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In Java 7, the scope of this mechanism was slightly extended to infer type parameters of generic constructor invocations with &lt;code class=&quot;highlighter-rouge&quot;&gt;&amp;lt;&amp;gt;&lt;/code&gt; (known as &lt;em&gt;diamond&lt;/em&gt;). Later in 2014, Java 8 was shipped with type inference for lambda expressions. More recently, project Amber brought in Java 10 &amp;amp; 11 groundbreaking type inference improvements, this time for method local and lambda expression parameters using the keyword &lt;em&gt;var.&lt;/em&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sport&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;football&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// sport is a String&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In my opinion Java is evolving this aspect quite interestingly for a few reasons. It’s worth to note some of them.&lt;/p&gt;
+
+&lt;h4 id=&quot;java-type-inference-is-not-forced&quot;&gt;Java Type Inference is not forced&lt;/h4&gt;
+
+&lt;p&gt;Java does not enforce type inference. This is giving the programmer options and not obligations on when to specify types or let the compiler do that work. It may look a minor detail, but it’s an important point in language design when it comes to backward compatibility (one of Java greatest strengths) and gives some freedom and flexibility for the developer to decide the syntax that best suits the best.&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;winners&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Arrays&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;asList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;first&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;second&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;//type manifest&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;winners&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Arrays&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;asList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;first&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;second&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// inferred type&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;losers&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ArrayList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;();&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// type manifest&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;losers&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ArrayList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;gt;();&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// inferred type (diamond operator)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;teams&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ArrayList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;gt;();&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// inferred type (diamond operator)&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;teams&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ArrayList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;();&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// inferred type (local type inference)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;java-type-inference-is-nothing-else-but-local&quot;&gt;Java Type Inference is nothing else but local&lt;/h4&gt;
+
+&lt;p&gt;In opposition to other languages, type inference in Java is only local and only does one exact thing: local constraint solving. Instead of a more global approach, Java restricts this mechanism to a method, expression or statement - gathering constraints on unknown types and solving them at some point. There are multiple strategies (aka algorithms) to perform these operations in order to cover all edge cases. By design, applying this mechanism to local scopes can be a little bit restricting. On the other hand making types manifest mandatory outside local scopes appears to be a better solution in terms of maintainability (directly proportional to readability).&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;resumeMatch&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Squad&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;squad&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;sendScores&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ArrayList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;());&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;publishSquad&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;squad&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;sendScores&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ArrayList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;?&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;scores&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;results&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;scores&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// DOES NOT COMPILE&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;publishSquad&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;squad&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// DOES NOT COMPILE&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;squad&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;publish&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;local-variable-type-inference-promotes-non-null-type-initialization&quot;&gt;Local Variable Type Inference promotes non-null type initialization&lt;/h4&gt;
+
+&lt;p&gt;Local variable type inference delivered in Java 10 (improved in version 11 for lambda expression parameters) avoids null type initialization by design. And there’s a good reason for this - for local variables declared with &lt;em&gt;var&lt;/em&gt;, the type inference system first computes the type of the initializer, which will be rejected if it is &lt;em&gt;null&lt;/em&gt;. Hopefully this will contribute to more reliable code.&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;// DONT DO THIS&lt;/span&gt;
+&lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;File&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;getFileContent&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;File&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;file&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;file&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;readFile&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;file.json&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;catch&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;FileNotFoundException&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;c1&quot;&gt;// SOME&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;File&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;getFileContent&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;//var file = null; // DOES NOT COMPILE&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;readFile&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;file.json&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;catch&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;FileNotFoundException&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;throw&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;IllegalStateException&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Failed reading file&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;local-variable-type-inference-is-less-restrictive-on-non-denotable-types&quot;&gt;Local Variable Type Inference is less restrictive on non-denotable types&lt;/h4&gt;
+
+&lt;p&gt;When inferring local variables with &lt;em&gt;var&lt;/em&gt; , the type can be rejected or special inference rules apply. This happens for non-denotable types. Non-denotable types are those types that can exist within the program, although there’s no way to explicitly write out the name for that type. A good example of rejection in &lt;em&gt;null&lt;/em&gt; (mentioned before), but there are interesting cases of non-denotable types where the usage of &lt;em&gt;var&lt;/em&gt; comes with advantages - anonymous classes. When assigning variables with &lt;em&gt;var&lt;/em&gt; the type inference system will infer the type differently giving access to members that wouldn’t be available using the traditional notation.&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;player&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Object&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;String&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;John&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;goals&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;};&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;System&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;out&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Player %s scored %s goals%n&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;player&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;player&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;goals&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ball&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Ball&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;striker&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Striker&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;nd&quot;&gt;@Override&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Goal&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;shoot&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Ball&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ball&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;Goal&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ball&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Ball&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;returnBall&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ball&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;};&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ballReturned&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;striker&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;returnBall&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h3&gt;
+
+&lt;p&gt;Compared to other features Java released in the last years, the latest improvements made in the type inference system were one of the most controversial. Local type inference in Java 10 proved this to be true as most people seemed reluctant and described this feature as something just to make Java more popular and trendy (C#, Scala or later Kotlin already had this feature) or as something that could encourage laziness and produce unreadable code. Some years after the release of this feature, the scenario is clear - like anything in programming, local variable inference requires good measure and adoption of &lt;a href=&quot;https://openjdk.java.net/projects/amber/LVTIstyle.html&quot;&gt;style guidelines&lt;/a&gt;.  In the new Java release cycle, Project Amber quickly brought to Java something that the community was asking for a long time. As GraalVM (and Truffle!) is gaining popularity, I believe that some of the constraints at interpreter and compiler level will be easier to overcome and Java will bring new type system improvements, faster than ever.&lt;/p&gt;
+
+</description>
+        <pubDate>Thu, 22 Oct 2020 00:00:00 +0000</pubDate>
+        <link>https://estrela.me/blog/java/2020/10/22/type-inference-in-java.html</link>
+        <guid isPermaLink="true">https://estrela.me/blog/java/2020/10/22/type-inference-in-java.html</guid>
+        
+        
+        <category>java</category>
+        
+      </item>
+    
+      <item>
+        <title>How interesting was CMS GC</title>
+        <description>&lt;p&gt;In the last few years, a lot of changes happened regarding Garbage Collection for the HotSpot Java VM. The garbage collector G1 became popular and production-ready in JDK 8u40, being adopted as the &lt;a href=&quot;http://openjdk.java.net/jeps/248&quot;&gt;default collector in Java 9&lt;/a&gt;. Some more collectors were made available for an experimental period. Just to name a few: &lt;a href=&quot;https://openjdk.java.net/jeps/333&quot;&gt;ZGC&lt;/a&gt;, &lt;a href=&quot;https://openjdk.java.net/jeps/189&quot;&gt;Shenandoah&lt;/a&gt; or &lt;a href=&quot;https://openjdk.java.net/jeps/318&quot;&gt;Epsilon&lt;/a&gt; - which is a collector designed for testing purposes only that doesn’t collect garbage (zero-effort).&lt;/p&gt;
+
+&lt;p&gt;With so many names popping I’ve decided to recap a bit my knowledge on garbage collection theory and review how the old Java collectors used work compared to the new ones. During my research I found some interesting details I didn’t know about, &lt;strong&gt;particularly related with CMS (Concurrent Mark and Sweep)&lt;/strong&gt;. It’s known that even before Java 8, collectors were concurrent. In order to reduce STW (stop-the-world), these collectors use all available system threads to execute their tasks. A good example is ParallelGC that makes use of &lt;a href=&quot;https://docs.oracle.com/javase/8/docs/technotes/guides/vm/gctuning/generations.html&quot;&gt;Weak Generational Hypothesis&lt;/a&gt; by touching only live objects and it uses all cores as much as possible to shorten the STW pause time. As an evacuating collector, ParallelGC promotes objects that have survived GC to Tenured space and passes that responsibility for ParallelOld.&lt;/p&gt;
+
+&lt;p&gt;ParallelOld is a compacting collector with only a single contiguous memory space which makes it very efficient in its use of memory (avoiding fragmentation). By default the size of old generation is 7 times bigger than young, and due to the fact that the marking time is proportional to the number of live objects in this region (considering long-lived objects as well) the STW time scales almost linearly with the size of the heap. As a result, ParallelOld starts to scale badly in terms of a STW time.&lt;/p&gt;
+
+&lt;h3 id=&quot;cms&quot;&gt;CMS&lt;/h3&gt;
+
+&lt;p&gt;As the default collector for the Tenured space in Java 7, CMS was designed to make a different usage of concurrency. In order to reduce pause time, CMS does as much work as possible while application threads are still running. It’s a fact that CMS uses more CPU and memory and it doesn’t compact heap, so Tenured can become fragmented. In a nutshell, these are its phases:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Initial Mark (STW) - Provides a stable set of starting points for GC that are within the region; these are known as internal pointers and provide a equivalent set to the GC roots for the purpose of collection cycle&lt;/li&gt;
+  &lt;li&gt;Concurrent Mark (STW) - Runs the tri-color marking algorithm on the heap and keeps track of any changes that might might later require fix&lt;/li&gt;
+  &lt;li&gt;Concurrent Preclean&lt;/li&gt;
+  &lt;li&gt;Remark Phase&lt;/li&gt;
+  &lt;li&gt;Concurrent Sweep&lt;/li&gt;
+  &lt;li&gt;Concurrent Reset&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Until now, all good. Now the interesting stuff commences.&lt;/p&gt;
+
+&lt;h4 id=&quot;cms-coordination-with-young-gc&quot;&gt;CMS coordination with Young GC&lt;/h4&gt;
+
+&lt;p&gt;What happens if Eden fills up while CMS is running? Because application threads cannot continue, they pause and a STW on the young runs while GC is running for the old generation. This young GC run will usually take longer than in the case of parallel collectors, because it only has half the cores available for the young generation (the other half of the cores are running CMS). At the end of this young collection, these objects need to be moved into Tenured while CMS is still running, which requires some coordination between the two collectors. &lt;strong&gt;This is why CMS requires a slightly different young collector. CMS cannot be used with Parallel GC. By default, HotSpot sets ParNew to perform GC on the young generation.&lt;/strong&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;fallback-to-parallelold&quot;&gt;Fallback to ParallelOld&lt;/h4&gt;
+
+&lt;p&gt;An interesting thing that may happen is called &lt;em&gt;Concurrent Mode Failure&lt;/em&gt; (CMF). When there is a very high premature promotion in the young collection, the JVM has no choice but to fallback to ParallelOld (which is 100% STW). Effectively, the allocation pressure can be so high that CMS doesn’t have time to finish processing the old generation before all the space to accommodate newly promoted objects. In order to prevent this issue, by default CMS starts a collection at 75% of it’s capacity.&lt;/p&gt;
+
+&lt;h4 id=&quot;fallback-to-parallelgc&quot;&gt;Fallback to ParallelGC&lt;/h4&gt;
+
+&lt;p&gt;Another common issue that leads to CMF is the heap fragmentation. CMS does not support compact Tenured and this means that after a collection, the free space in Tenured is not a single contiguous block, and objects that are promoted have to be filed into the gaps between existing threads. If this is not possible, in this case, there’s a fallback to ParallelGC. Known for being good at avoiding memory fragmentation, ParallelGC takes action and does a fully STW and compacting collection.&lt;/p&gt;
+
+&lt;h3 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h3&gt;
+
+&lt;p&gt;At the time it was designed, CMS was the solution to overcome the long STW pauses that the previous algorithms implied. But as a highly and sophisticated algorithm, CMS caused a lot of complexities to the GC code base in JDK. It counts with around 72 configuration flags, on top of the common 50 which makes it hard to understand and tune. Oracle’s answer for this problem was G1, that is much easier to tune and avoids the problems described before. CMS was &lt;a href=&quot;https://openjdk.java.net/jeps/363&quot;&gt;removed&lt;/a&gt; from JDK on release 14. As the default algorithm since Java 9, G1 it’s &lt;a href=&quot;https://openjdk.java.net/jeps/307&quot;&gt;constantly improving&lt;/a&gt; and more than ever, Oracle is pushing new solutions for garbage collection. Some of the new GC solutions mentioned in the introduction, don’t really represent a better solution or a replacement for G1, but a different view or approach that might work better for different and very specific use cases. At the time of this writing, Oracle is preparing the release of JDK 15 bundled with &lt;a href=&quot;https://openjdk.java.net/jeps/377&quot;&gt;ZGC&lt;/a&gt; and &lt;a href=&quot;https://openjdk.java.net/jeps/379&quot;&gt;Shenandoah&lt;/a&gt; production-ready. It’s case to say, the future of Java is now!&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;References&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://docs.oracle.com/en/java/javase/index.html&quot;&gt;Java Platform, Standard Edition Documentation&lt;/a&gt; (Java Virtual Machine Guide &amp;amp; Garbage Collection Tuning)&lt;/li&gt;
+  &lt;li&gt;Benjamin J Evans, James Gough &amp;amp; Chris Newland (2018) Optimizing Java: Practical techniques for improving JVM application performance&lt;/li&gt;
+&lt;/ul&gt;
+</description>
+        <pubDate>Tue, 01 Sep 2020 00:00:00 +0000</pubDate>
+        <link>https://estrela.me/blog/java/2020/09/01/how-interesting-was-cms-gc.html</link>
+        <guid isPermaLink="true">https://estrela.me/blog/java/2020/09/01/how-interesting-was-cms-gc.html</guid>
+        
+        
+        <category>java</category>
+        
+      </item>
+    
+      <item>
+        <title>Demystifying Thread Safety</title>
+        <description>&lt;p&gt;&lt;em&gt;* The content of this post was originally published at &lt;a href=&quot;https://parserdigital.com/demystifying-thread-safety-2/&quot;&gt;Parser Digital Community&lt;/a&gt; *&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;Modern programming languages support easy multi-threading out of the box and multitasking has become synonymous with efficiency. Multi-threading grants the ability to simultaneously run or execute multiple tasks, represented as Threads - and it can take different shapes. Multiple patterns were identified, different techniques were conceived and mechanisms have been exhaustively enhanced to simplify and increase the performance of the code in multi-threaded scenarios.&lt;/p&gt;
+
+&lt;p&gt;Although it is a powerful feature, multi-threading comes with some common disadvantages. The first disadvantage is the inner &lt;strong&gt;difficulty and complexity&lt;/strong&gt; of the subject. As a sensitive topic, it requires maximum attention to detail - is very easy to get wrong and this may lead to &lt;strong&gt;unpredictable and incorrect results&lt;/strong&gt;. In worse cases, issues like the well known &lt;em&gt;deadlock&lt;/em&gt; can be happen and its misuse can have negative impact on software systems. Another disadvantage id the &lt;strong&gt;performance overhead&lt;/strong&gt; than can bring - the creation of native threads have a natural system cost.&lt;/p&gt;
+
+&lt;p&gt;As a Software Engineer, one of the most intriguing things that can happen, is the inability and incapacity of accepting the reality without being able to understand, replicate and validate it. For this reason, I consider the &lt;strong&gt;complex to debug and test&lt;/strong&gt; the major threat that multi-threading carries.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-mystery&quot;&gt;The Mystery&lt;/h2&gt;
+
+&lt;p&gt;In single and distributed systems, multi-threading issues happen often. This usually occurs when these systems share mutable data - an this can come in many different shapes. Accessing databases, orchestrating process between distributed instances… Sometimes the simple absence of &lt;a href=&quot;https://docs.hazelcast.org/docs/3.2/manual/html/lock.html&quot;&gt;good locking systems&lt;/a&gt; spread the occurrence of race conditions. Database systems already incorporate fine grained concurrency lock based control mechanisms that keep consistency of data. However, most of the times that doesn’t avoid getting locking exceptions that some of us seem to struggle to understand.&lt;/p&gt;
+
+&lt;h3 id=&quot;multi-threading-in-action&quot;&gt;Multi-threading in Action&lt;/h3&gt;
+
+&lt;p&gt;For the sake of simplicity lets analyses the well known Single Pattern implemented in Java.&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;MySingleton&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+
+    &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MySingleton&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;mySingleton&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+
+    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;synchronized&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MySingleton&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;getMySingleton&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;mySingleton&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;mySingleton&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MySingleton&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;mySingleton&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;At the end, this is not the most accurate example in terms of performance, although, this is considered a way of obtaining a reasonable &lt;em&gt;thread-safe&lt;/em&gt; singleton implementation. It uses the lightweight synchronization mechanism on the &lt;em&gt;getter&lt;/em&gt; method to guarantee synchronized access to the singleton instance. Have you ever tried to prove this is true?&lt;/p&gt;
+
+&lt;h3 id=&quot;keeping-it-simple&quot;&gt;Keeping it Simple&lt;/h3&gt;
+
+&lt;p&gt;In the &lt;em&gt;Java Concurrent Utilities Framework&lt;/em&gt; ecosystem, threads can be created by extending the &lt;code class=&quot;highlighter-rouge&quot;&gt;Thread&lt;/code&gt; class or implementing the &lt;code class=&quot;highlighter-rouge&quot;&gt;Runnable&lt;/code&gt; interface. The last lacks the ability to make the thread being able to return a value. For supporting this feature, the &lt;em&gt;Callable&lt;/em&gt; interface exists. So, consider the following &lt;em&gt;native&lt;/em&gt; thread abstration that simply gets the instance of the singleton class.&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;MyThread&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;implements&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Callable&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MySingleton&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+
+    &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CountDownLatch&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;latch&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+
+    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;MyThread&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CountDownLatch&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;latch&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;latch&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;latch&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;nd&quot;&gt;@Override&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MySingleton&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;call&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;throws&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InterruptedException&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;latch&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;await&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MySingleton&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;getMySingleton&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Please note the parameter &lt;code class=&quot;highlighter-rouge&quot;&gt;latch&lt;/code&gt;. Restating the source Java-docs, a &lt;code class=&quot;highlighter-rouge&quot;&gt;CountDownLatch&lt;/code&gt; is &lt;em&gt;a synchronization aid that allows one or more threads to wait until a set of operations being performed in other threads completes&lt;/em&gt;. This isn’t obviously necessary to get the singleton instance, but it help to will provide the necessary synchronization in the next steps.&lt;/p&gt;
+
+&lt;p&gt;The execution method &lt;code class=&quot;highlighter-rouge&quot;&gt;call&lt;/code&gt; simply invokes and returns the singleton instance.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-truth-is-worth-it&quot;&gt;The Truth is Worth It&lt;/h2&gt;
+
+&lt;p&gt;Consider the following unit test. It recreates a multi-threading scenario where 2 threads instances are created and submitted to a &lt;em&gt;Thread Pool&lt;/em&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nd&quot;&gt;@Test&lt;/span&gt;
+&lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;testMySingleton&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;throws&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ExecutionException&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InterruptedException&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;ExecutorService&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;executorService&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Executors&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;newFixedThreadPool&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;CountDownLatch&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;latch&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CountDownLatch&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;Future&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MySingleton&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;singleton1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;executorService&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;submit&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MyThread&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;latch&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;));&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;Future&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MySingleton&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;singleton2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;executorService&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;submit&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MyThread&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;latch&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;));&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;latch&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;countDown&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;assertEquals&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;singleton1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;().&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;hashCode&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;singleton2&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;().&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;hashCode&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;());&lt;/span&gt;
+
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The &lt;code class=&quot;highlighter-rouge&quot;&gt;CountDownLatch&lt;/code&gt; mentioned before is initialized with 1 will hold the execution and of both threads, that will be simultaneously released when the &lt;code class=&quot;highlighter-rouge&quot;&gt;countDown()&lt;/code&gt; is invoked. This strategy is &lt;em&gt;deffered&lt;/em&gt; - it implies capturing the value returned by both threads encapsulated in a &lt;em&gt;Future&lt;/em&gt;. Assertion is based on the object &lt;em&gt;hashCode&lt;/em&gt;. Same &lt;em&gt;hashCode&lt;/em&gt; implies same object instance.&lt;/p&gt;
+
+&lt;p&gt;Executing this test doesn’t lead to surprising results. The singleton instantiated twice is &lt;em&gt;thread-safe&lt;/em&gt; - the first thread will acquire the lock in the object constructor and instantiate the static field. The second thread will simply return the instance.&lt;/p&gt;
+
+&lt;h3 id=&quot;silver-lining&quot;&gt;Silver Lining&lt;/h3&gt;
+
+&lt;p&gt;From the beginning, a &lt;em&gt;thread-safe&lt;/em&gt; scenario was considered. Removing the &lt;code class=&quot;highlighter-rouge&quot;&gt;synchronised&lt;/code&gt; keyword from the singleton &lt;em&gt;getter&lt;/em&gt; method should, hence, put in cause thread safety. Executing the same test with the suggested change leads to nondeterministic failures because the Singleton is created twice.&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;java&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;lang&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;AssertionError&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; 
+&lt;span class=&quot;n&quot;&gt;Expected&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;125993742&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;Actual&lt;/span&gt;   &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1192108080&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;This is one of the reasons why the Singleton pattern is already considered an &lt;em&gt;anti-pattern&lt;/em&gt;. Without proper synchronization, the implementation ridiculously nullifies its own purpose.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;Thread safety is a hard subject but it doesn’t necessarily have to be mystery for any developer. While avoiding multi-threading issues at all is a big challenge, being able to understand them &lt;em&gt;a priori&lt;/em&gt; brings value. As shown possible issues and their impact can be mitigated during development leading to more solid and scalable systems. You might think that the scenario presented is &lt;code class=&quot;highlighter-rouge&quot;&gt;oversimplified and optimistic&lt;/code&gt; , however when applied to more complex tasks the same rules apply. I always keep this pieces of code close.&lt;/p&gt;
+</description>
+        <pubDate>Tue, 14 Jul 2020 00:00:00 +0000</pubDate>
+        <link>https://estrela.me/blog/java/2020/07/14/demystifying-thread-safety.html</link>
+        <guid isPermaLink="true">https://estrela.me/blog/java/2020/07/14/demystifying-thread-safety.html</guid>
+        
+        
+        <category>java</category>
+        
+      </item>
+    
+      <item>
+        <title>Threading for Performance</title>
+        <description>&lt;p&gt;In the &lt;em&gt;Information Age&lt;/em&gt;, we all want answers from the web as quick as possible. Compared to the past software systems nowadays need to process a huge amount of data, in very different hardware contexts where cloud based systems are a reality. Now, the market demands responsive, loosely coupled, scalable, resilient and message-driven systems.&lt;/p&gt;
+
+&lt;p&gt;When Architecting a system for performance, multitasking is a must. The obsolete single-threaded applications are not an option anymore and modern systems need to implement multi-threading mechanisms as the answer to the market performance needs. Although it might sound a great idea, traditional multi-threading comes at a cost. It carries natural and inner performance disadvantages usually referred as &lt;em&gt;performance overhead&lt;/em&gt;.&lt;/p&gt;
+
+&lt;p&gt;The performance overhead associated with multi-threading, regards mainly to the fact that, the CPU has to switch the execution between threads. When switching, it has to save the register state of a thread and load the state of a different thread. Modern processors are very good at this as they implement high performance caches. But caches are finite. When caches are full, processors must evict data to make room for new data. Thus software threads tend to evict each other’s data, and the cache fighting from too many threads can hurt performance. As with caches, time slicing accessing Virtual Memory causes threads to fight each other for real memory for its stack and private data structures. In extreme cases, there can be so many threads that the program even can run out of virtual memory.&lt;/p&gt;
+
+&lt;p&gt;While the hardware industry is making remarkable progress improving hardware systems, the software industry is in constant adaptation, visioning and implementing different approaches to take the best out of hardware. It might sound confusing, but this has shown to be the symbiosis of success.&lt;/p&gt;
+
+&lt;h2 id=&quot;reactive&quot;&gt;Reactive&lt;/h2&gt;
+
+&lt;p&gt;Reactive is a &lt;em&gt;buzzword&lt;/em&gt;, you should have heard about it - and you might think this is something new. The term has been in use since the paper, &lt;em&gt;The Reactive Engine&lt;/em&gt; was made available by Alan Kay in 1969. A few years later, in 1997 Conal Elliot and Paul Hudak came up with &lt;em&gt;Function Reactive Animation&lt;/em&gt;. But it was only in 2014 when this topic was rekindled with the &lt;em&gt;Reactive Manifesto&lt;/em&gt;.&lt;/p&gt;
+
+&lt;p&gt;Through constant change, organizations had to reinvent their software products.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;em&gt;These changes are happening because application requirements have changed dramatically in recent years. Only a few years ago a large application had tens of servers, seconds of response time, hours of offline maintenance and gigabytes of data. Today applications are deployed on everything from mobile devices to cloud-based clusters running thousands of multi-core processors. Users expect millisecond response times and 100% up-time. Data is measured in Petabytes. Today’s demands are simply not met by yesterday’s software architectures.&lt;/em&gt;&lt;/p&gt;
+
+  &lt;p&gt;&lt;a href=&quot;https://www.reactivemanifesto.org/&quot;&gt;https://www.reactivemanifesto.org/&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Reactive applications focuses on the systems that react to the events, the varying loads, and multiple users. It also react effectively to all the conditions, whether it’s successful or has failed to process requests. The Reactive Manifesto came as attempt to define a new industry standard. It defines four characteristics to design Reactive Systems.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;em&gt;We believe that a coherent approach to systems architecture is needed, and we believe that all necessary aspects are already recognized individually: we want systems that are Responsive, Resilient, Elastic and Message Driven. We call these Reactive Systems.&lt;/em&gt;&lt;/p&gt;
+
+  &lt;p&gt;&lt;a href=&quot;https://www.reactivemanifesto.org/&quot;&gt;https://www.reactivemanifesto.org/&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h3 id=&quot;reactive-programming&quot;&gt;Reactive Programming&lt;/h3&gt;
+
+&lt;p&gt;With the advent of Reactive Systems, the industry of software conceived a new paradigm called Reactive Programming.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;em&gt;RP designs code in such a way that the problem is divided into many small steps, where each step or task can be executed asynchronously without blocking each other. Once each task is done , it’s composed together to produce a complete flow without getting bound in the input or output.&lt;/em&gt;&lt;/p&gt;
+
+  &lt;p&gt;&lt;strong&gt;Tejaswini Mandar Jog&lt;/strong&gt; - Reactive Programming With Java 9&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;In another words, Reactive Programming disseminates the idea of instead of creating a thread for each blocking concurrent task, a dedicated thread commonly called &lt;em&gt;event loop&lt;/em&gt; looks to all the tasks that are assigned to threads in a non-reactive model, and processes each of them on the same process. This new paradigm reduced the problem of context switch, by imposing an asynchronous and non-blocking mindset. As a result, the performance and the utilization of resources on a multi-core is increased and it provided a more maintainable approach to deal with asynchronism.&lt;/p&gt;
+
+&lt;p&gt;But writing high-performance, efficient, scalable and correct Reactive software is hard. With the rise of Functional Programming a new paradigm was born - Functional Reactive Programming. An abstraction on top of imperative systems that allows to program asynchronous and event-driven functional programs avoiding the pitfalls (like the well known &lt;em&gt;callback hell&lt;/em&gt;) of reactive imperative code. It established a concrete functional approach to model programs behavior and how behavior changes according to events.&lt;/p&gt;
+
+&lt;p&gt;It was the beginning of a new movement called &lt;em&gt;Reactive Extensions&lt;/em&gt;. An API for asynchronous programming with observable streams of events. Reactor, RxJava or RxNet just to name a few are new set of tools created under the name of Reactive Extensions or ReactiveX. Combining ideas from the &lt;em&gt;Observer&lt;/em&gt; pattern, &lt;em&gt;Iterator&lt;/em&gt; pattern and Functional programming , reactive extensions allow &lt;em&gt;composing asynchronous and event-based programs by using observable sequences&lt;/em&gt;.&lt;/p&gt;
+
+&lt;p&gt;In 2017, Java 9 introduced the Flow API, a &lt;em&gt;Reactive Streams&lt;/em&gt; specification as a standard to build Stream-oriented libraries for reactive and non-blocking JVM-based systems. The library RxJava was adapted to depend on this this new specification.&lt;/p&gt;
+
+&lt;h2 id=&quot;coroutines&quot;&gt;Coroutines&lt;/h2&gt;
+
+&lt;p&gt;Although Reactive is a very powerful concept when applied to programming , libraries didn’t provide the right solution as a general approach to manage asynchronous processing. While frameworks are still embracing, reinventing mechanisms and providing better reactive integrations, some natural pitfalls such as complexity, natural performance overhead and code readability forced the Industry to come up with a more practical and simple approach. &lt;em&gt;Jetbrains&lt;/em&gt; and the community reinvented an old concept and the result was - Coroutines.&lt;/p&gt;
+
+&lt;p&gt;Coroutines are commonly described as lightweight threads. It’s a fact that they are conceptually very similar to threads, however they do not mirror the traditional threading that involves native system calls. They run on native threads and they do not depend on any synchronization mechanism such as mutexes or semaphores. The natural performance overheard is then nullified and this makes them highly performance and convenient to implement multitasking on applications.&lt;/p&gt;
+
+&lt;p&gt;Although in a total different context, Kotlin Coroutines can be seen like a very well designed and sophisticated variation of existing solutions - such as the well know &lt;em&gt;Promise&lt;/em&gt; (ES6) , 2 years latter improved with ECMAScript 2017 with the &lt;em&gt;async&lt;/em&gt; and &lt;em&gt;await&lt;/em&gt; mechanisms.&lt;/p&gt;
+
+&lt;p&gt;Coroutines are great as they provide a very solid multitasking context that allows &lt;em&gt;structured concurrency&lt;/em&gt;, &lt;em&gt;scopes&lt;/em&gt;, &lt;em&gt;cancellation &amp;amp; timeouts&lt;/em&gt;, &lt;em&gt;composition&lt;/em&gt; and &lt;em&gt;asynchronous flows&lt;/em&gt; just to name a few treats - allied with a notable syntax and a fast learning curve.&lt;/p&gt;
+
+&lt;div class=&quot;language-kotlin highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;fun&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;runBlocking&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;launch&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;printWorld&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;println&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Hello,&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;suspend&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;fun&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;printWorld&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;delay&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;1000L&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;println&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;World!&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;This increased incredibly the appetite to migrate existing Reactive solutions to Coroutines. Specially in Android development where the existing approach was complex and a simpler and more convenient way to make applications flow asynchronous was necessary to improve the performance of the applications.&lt;/p&gt;
+
+&lt;p&gt;Please note the code block above. As the &lt;em&gt;suspend&lt;/em&gt; function is asynchronous, &lt;code class=&quot;highlighter-rouge&quot;&gt;runBlocking&lt;/code&gt; scope blocks the current thread for waiting the asynchronous code to complete. There’s no magic, and a synchronous, blocking I/O or mutex call will remain thread-blocking outside of the coroutine scope. So, what’s next?&lt;/p&gt;
+
+&lt;h2 id=&quot;project-loom&quot;&gt;Project Loom&lt;/h2&gt;
+
+&lt;p&gt;The current JVM model, creates an operating system thread per Java thread. Project Loom is a proposal to enhance the JVM and the Java Library in order to support the ability to create lightweight threads that run on top of conventional threads.&lt;/p&gt;
+
+&lt;p&gt;The lightweight threads will be called &lt;strong&gt;Fibers&lt;/strong&gt; and the coroutine logic will be called &lt;strong&gt;Continuation&lt;/strong&gt;. Similar to Kotlin &lt;code class=&quot;highlighter-rouge&quot;&gt;suspend&lt;/code&gt; functions, Continuations will have an entry point and a &lt;em&gt;yield&lt;/em&gt; point that corresponds to the point were the execution can be suspended. If the caller resumes the continuation, the control returns to the last point. When a Fiber encounters a blocking call, it won’t unblock the native thread - but the Fiber is suspended until this action to complete switching the execution to a different Fiber. Fibers run in a thread pool, yielding cooperatively. Switching execution between Fibers is a cheap operation.&lt;/p&gt;
+
+&lt;p&gt;Reactive and asynchronous programming usually lead to cognitive complexity, lost of context and control. In opposition, Loom’s approach is not based in a high level asynchronous mechanism. It will give the simplicity of synchronous operations with the performance cost of asynchronous. Blocking executions executed in Fibers will use non-blocking I/O under the hood. For the developer, it will be much easier to develop and maintain high performance systems since the complexity will “reside” at JVM level, leveraging this functionality consistently to different platforms.&lt;/p&gt;
+
+&lt;p&gt;I really recommend to read the &lt;a href=&quot;https://cr.openjdk.java.net/~rpressler/loom/Loom-Proposal.html&quot;&gt;Loom Proposal&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;OpenJDK already gave a preview early access to project Loom. Some &lt;a href=&quot;https://dzone.com/articles/a-new-java-with-a-stronger-fiber&quot;&gt;tests already performed&lt;/a&gt; accuse that with Loom it will be possible to create 1000 times more fibers than threads, and creating them is 70 times faster.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;World Economy requires more than ever performance at a low cost. In a &lt;em&gt;Age&lt;/em&gt; where data and computing is in exponential grown, Architecting software systems with Performance in mind is a must.&lt;/p&gt;
+
+&lt;p&gt;We usually say that &lt;em&gt;Technology is Eating the World&lt;/em&gt;. In a World more aware of sustainability, optimization was never so important - this is happening in many different industries. And software is not an exception to the rule. We have to improve, otherwise the World will eat us.&lt;/p&gt;
+</description>
+        <pubDate>Sat, 20 Jun 2020 00:00:00 +0000</pubDate>
+        <link>https://estrela.me/blog/java/2020/06/20/threading-for-performance.html</link>
+        <guid isPermaLink="true">https://estrela.me/blog/java/2020/06/20/threading-for-performance.html</guid>
+        
+        
+        <category>java</category>
+        
+      </item>
+    
+      <item>
+        <title>Buildpacks with Paketo</title>
+        <description>&lt;p&gt;Containerization of applications has been a massive trend in the IT Industry. They provide a logical packaging mechanism in which applications can be abstracted from the environment they run, allowing them to be deployed consistently. The separation of concerns they provide, makes the developer’s life easier as they can focus more in the application and product development.&lt;/p&gt;
+
+&lt;p&gt;In opposition to visualizing a complete hardware stack, tools like Docker and Kubernetes quickly established a new standard in the Industry to develop, pack and deploy applications. IT operations teams are now more productive and focused in delivery, building future proof solutions that are flexible and which integration is possible among different cloud service providers such as Google Cloud and Amazon Web Services.&lt;/p&gt;
+
+&lt;p&gt;Organizations should be aware of this. As most of these tools are free and open source - running applications in containers can be substantially cheaper than traditional setups and they have major importance when it comes to attract talent.&lt;/p&gt;
+
+&lt;h2 id=&quot;developer&quot;&gt;Developer&lt;/h2&gt;
+
+&lt;p&gt;NoOps is a reality. The effort IT operations needed to keep software running is being minimized and they are now more than ever focused in the improvement of processes and all the operational overhead these new setups require. For Developers, the transition to this new reality can be cumbersome. In more complex environments, tools like Docker and Kubernetes can be extremely hard to master and in some situations can simply be an overkill. In the last few years, organizations have been working in new tools no minimize the cognitive burden, improve consistency and deliver applications faster. One of this tools is &lt;strong&gt;Buildpacks&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;containerization-with-docker&quot;&gt;Containerization with Docker&lt;/h3&gt;
+
+&lt;p&gt;Containerization of applications using Docker showed a strong appetite to popularize Docker images based on &lt;strong&gt;Dockerfiles&lt;/strong&gt;. These Docker images, created by Organizations and Individuals have been helping us to quickly containerize applications and setup their dependencies.&lt;/p&gt;
+
+&lt;p&gt;As a developer, I must say that there should be a Docker image available in Internet for most of our purposes. Although, this practice lead the industry to create different solutions, that are hard to maintain and the lead it comes to inconsistencies on upstream dependencies and performance issues - when it comes to Java applications this approach has a major &lt;a href=&quot;https://spring.io/blog/2020/01/27/creating-docker-images-with-spring-boot-2-3-0-m1&quot;&gt;performance impact&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;cloud-native-buildpacks&quot;&gt;Cloud Native Buildpacks&lt;/h3&gt;
+
+&lt;p&gt;Cloud Native Buildpacks are part of the answer to this problem. The concept of &lt;em&gt;Buildpack&lt;/em&gt; was first conceived by Heroku is 2011, since then they have been adopted by Cloud Foundry and and other PaaS. However the need to create a standard took Pivotal and Heroku to start the Cloud Native Buildpacks project in the beginning of 2018.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;The project aims to unify the buildpack ecosystems with a platform-to-buildpack contract that is well-defined and that incorporates learnings from maintaining production-grade buildpacks for years at both Pivotal and Heroku. Cloud Native Buildpacks embrace modern container standards, such as the OCI image format. They take advantage of the latest capabilities of these standards, such as cross-repository blob mounting and image layer “rebasing” on Docker API v2 registries.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h4 id=&quot;paketo-buildpacks&quot;&gt;Paketo Buildpacks&lt;/h4&gt;
+
+&lt;p&gt;Paketo are Modular Buildpacks written in Go that leverage and contribute to the Cloud Native Buildpacks framework. They provide different packaging flavors for different kind of systems, written using different programming languages, for different purposes.&lt;/p&gt;
+
+&lt;h3 id=&quot;lets-pack-push-and-deploy&quot;&gt;Lets Pack, Push and Deploy!&lt;/h3&gt;
+
+&lt;p&gt;Lets put all this in practice. Consider building a Spring Boot Maven project - we will pack the application, push the container image to Google Cloud Repository, and deploy it with Google Kubernetes Engine.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Intermediate steps such as tools installation, project creation and authentication won’t be described. The detailed information can be found in every corner of the Internet.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h4 id=&quot;pack&quot;&gt;Pack&lt;/h4&gt;
+
+&lt;p&gt;The process of packing (or packaging) involves the usage of the &lt;em&gt;pack CLI&lt;/em&gt;. It will run a process upon Docker that automatically discovers the dependencies required for the application to be built. In the root folder of your application project run:&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;pack build gcr.io/{GC_APP_ID}/app --builder cloudfoundry/cnb:bionic&lt;/code&gt;&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;A &lt;code class=&quot;highlighter-rouge&quot;&gt;builder&lt;/code&gt; must be specified - it bundles all the information how to build the app, such as buildpacks and build-time image, as well as executes the buildpacks against the application source code.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;It will detect and fetch all the buildpacks needed and will orchestrate their execution. Note the packeto-buildpacks in action.&lt;/p&gt;
+
+&lt;div class=&quot;language-text highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;===&amp;gt; DETECTING
+...
+[detector] paketo-buildpacks/bellsoft-liberica 2.3.1
+[detector] paketo-buildpacks/maven             1.2.0
+[detector] paketo-buildpacks/executable-jar    1.2.1
+[detector] paketo-buildpacks/apache-tomcat     1.1.1
+[detector] paketo-buildpacks/dist-zip          1.2.1
+[detector] paketo-buildpacks/spring-boot       2.2.4
+===&amp;gt; BUILDING
+[builder] Paketo Maven Buildpack 1.2.0
+[builder] [INFO] Scanning for projects...
+...
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;push&quot;&gt;Push&lt;/h4&gt;
+
+&lt;p&gt;Once the image is built, pushing it with Docker to Google Cloud Repository is exactly the same as pushing it to a custom container registry or the official and well know, DockerHub.&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;docker push gcr.io/{GC_APP_ID}/app&lt;/code&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;deploy&quot;&gt;Deploy&lt;/h4&gt;
+
+&lt;p&gt;Creating a Kubernetes cluster is pretty straightforward with &lt;code class=&quot;highlighter-rouge&quot;&gt;gcloud&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;gcloud container clusters create app-cluster --num-nodes=2&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;Using &lt;code class=&quot;highlighter-rouge&quot;&gt;kubectl&lt;/code&gt; is possible to create a Kubernetes deployment. This will trigger the deployment of the image on the cluster previously created.&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;kubectl create deployment app --image=gcr.io/{GC_APP_ID}/app&lt;/code&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;final-steps&quot;&gt;Final steps&lt;/h4&gt;
+
+&lt;p&gt;Containers on Google Kubernetes Engine are not accessible from the Internet because they do not have external IP addresses, unless the are explicitly exposed. Again with &lt;code class=&quot;highlighter-rouge&quot;&gt;kubectl&lt;/code&gt;:&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;kubectl expose deployment app --type=LoadBalancer --port 80 --target-port 8080&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;Know it’s time to get the external IP address to access your application.&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;kubectl get service&lt;/code&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-text highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;NAME         CLUSTER-IP      EXTERNAL-IP     PORT(S)          AGE
+app          10.8.123.102    207.0.108.3     80:30877/TCP     15m
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;…and there you go! The application is up and running accepting connections on port 80 through the external IP provided.&lt;/p&gt;
+
+&lt;h3 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h3&gt;
+
+&lt;p&gt;Every developer that had to build and maintain a Dockerfile, knows the struggle. The good news are that Buildpacks are a reality and this is adding big improvements in terms of consistency, performance and security to our builds. Another good point is that Spring Boot 2.3.0 will bring Buildpacks support out of the box - &lt;code class=&quot;highlighter-rouge&quot;&gt;pack&lt;/code&gt; won’t be necessary anymore and build process will be possible simply running &lt;code class=&quot;highlighter-rouge&quot;&gt;mvn spring-boot:build-image&lt;/code&gt;.&lt;/p&gt;
+</description>
+        <pubDate>Fri, 15 May 2020 00:00:00 +0000</pubDate>
+        <link>https://estrela.me/blog/java/2020/05/15/buildpacks-paketo.html</link>
+        <guid isPermaLink="true">https://estrela.me/blog/java/2020/05/15/buildpacks-paketo.html</guid>
+        
+        
+        <category>java</category>
+        
+      </item>
+    
+  </channel>
+</rss>

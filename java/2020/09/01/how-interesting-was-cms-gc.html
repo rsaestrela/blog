@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="robots" content="index,follow">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How interesting was CMS GC</title>
+  <meta name="description" content="In the last few years, a lot of changes happened regarding Garbage Collection for the HotSpot Java VM. The garbage collector G1 became popular and production...">
+  <link rel="stylesheet" href="/blog/css/main.css">
+  <link rel="canonical" href="https://estrela.me/blog/java/2020/09/01/how-interesting-was-cms-gc.html">
+  <link rel="alternate" type="application/rss+xml" title="estrela.me * blog" href="https://estrela.me/blog/feed.xml">
+  <link rel="icon" href="/blog/favicon.ico" type="image/x-icon">
+  <meta property="og:title" content="Raul Estrela">
+  <meta property="og:site_name" content="Raul Estrela Blog">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://estrela.me/blog">
+  <meta property="og:image" content="/assets/profile_image.png">
+  <meta property="og:description" content="@rsaestrela personal website">
+  <meta itemprop="name" content="Raul Estrela">
+  <meta itemprop="description" content="@rsaestrela personal website">
+  <meta itemprop="image" content="https://estrela.me/img/profile_image.png">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-180685972-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'UA-180685972-1');
+</script>
+</head>
+
+  <body>
+    <header class="header">
+  <div class="wrapper">
+    <a href="/blog/">
+      <div class="profile-image"></div>
+    </a>
+    <div class="title">Thoughts written down, by Raul Estrela</div>
+  </div>
+</header>
+
+    <header class="bar">
+  <div class="wrapper">
+    <span class="link-button">
+      <a class="text-button" target="_blank" href="/blog/feed.xml">subscribe rss</a>
+    </span>
+    <span class="link-button">
+      <a class="text-button" target="_blank" href="https://estrela.me">estrela.me</a>
+    </span>
+    <span class="link-button">
+      <a class="text-button" target="_blank" href="https://github.com/rsaestrela">github</a>
+    </span>
+    <span class="link-button">
+      <a class="text-button" target="_blank" href="https://www.linkedin.com/in/raulsilvaestrela/">linkedin</a>
+    </span>
+    <span class="link-button">
+      <a class="text-button" target="_blank" href="https://dev.to/rsaestrela">dev.to</a>
+    </span>
+  </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">How interesting was CMS GC</h1>
+    <p class="post-meta"><time datetime="2020-09-01T00:00:00+00:00" itemprop="datePublished">Sep 1, 2020</time></p>
+  </header>
+  <div class="post-content" itemprop="articleBody">
+    <p>In the last few years, a lot of changes happened regarding Garbage Collection for the HotSpot Java VM. The garbage collector G1 became popular and production-ready in JDK 8u40, being adopted as the <a href="http://openjdk.java.net/jeps/248">default collector in Java 9</a>. Some more collectors were made available for an experimental period. Just to name a few: <a href="https://openjdk.java.net/jeps/333">ZGC</a>, <a href="https://openjdk.java.net/jeps/189">Shenandoah</a> or <a href="https://openjdk.java.net/jeps/318">Epsilon</a> - which is a collector designed for testing purposes only that doesn’t collect garbage (zero-effort).</p>
+
+<p>With so many names popping I’ve decided to recap a bit my knowledge on garbage collection theory and review how the old Java collectors used work compared to the new ones. During my research I found some interesting details I didn’t know about, <strong>particularly related with CMS (Concurrent Mark and Sweep)</strong>. It’s known that even before Java 8, collectors were concurrent. In order to reduce STW (stop-the-world), these collectors use all available system threads to execute their tasks. A good example is ParallelGC that makes use of <a href="https://docs.oracle.com/javase/8/docs/technotes/guides/vm/gctuning/generations.html">Weak Generational Hypothesis</a> by touching only live objects and it uses all cores as much as possible to shorten the STW pause time. As an evacuating collector, ParallelGC promotes objects that have survived GC to Tenured space and passes that responsibility for ParallelOld.</p>
+
+<p>ParallelOld is a compacting collector with only a single contiguous memory space which makes it very efficient in its use of memory (avoiding fragmentation). By default the size of old generation is 7 times bigger than young, and due to the fact that the marking time is proportional to the number of live objects in this region (considering long-lived objects as well) the STW time scales almost linearly with the size of the heap. As a result, ParallelOld starts to scale badly in terms of a STW time.</p>
+
+<h3 id="cms">CMS</h3>
+
+<p>As the default collector for the Tenured space in Java 7, CMS was designed to make a different usage of concurrency. In order to reduce pause time, CMS does as much work as possible while application threads are still running. It’s a fact that CMS uses more CPU and memory and it doesn’t compact heap, so Tenured can become fragmented. In a nutshell, these are its phases:</p>
+
+<ol>
+  <li>Initial Mark (STW) - Provides a stable set of starting points for GC that are within the region; these are known as internal pointers and provide a equivalent set to the GC roots for the purpose of collection cycle</li>
+  <li>Concurrent Mark (STW) - Runs the tri-color marking algorithm on the heap and keeps track of any changes that might might later require fix</li>
+  <li>Concurrent Preclean</li>
+  <li>Remark Phase</li>
+  <li>Concurrent Sweep</li>
+  <li>Concurrent Reset</li>
+</ol>
+
+<p>Until now, all good. Now the interesting stuff commences.</p>
+
+<h4 id="cms-coordination-with-young-gc">CMS coordination with Young GC</h4>
+
+<p>What happens if Eden fills up while CMS is running? Because application threads cannot continue, they pause and a STW on the young runs while GC is running for the old generation. This young GC run will usually take longer than in the case of parallel collectors, because it only has half the cores available for the young generation (the other half of the cores are running CMS). At the end of this young collection, these objects need to be moved into Tenured while CMS is still running, which requires some coordination between the two collectors. <strong>This is why CMS requires a slightly different young collector. CMS cannot be used with Parallel GC. By default, HotSpot sets ParNew to perform GC on the young generation.</strong></p>
+
+<h4 id="fallback-to-parallelold">Fallback to ParallelOld</h4>
+
+<p>An interesting thing that may happen is called <em>Concurrent Mode Failure</em> (CMF). When there is a very high premature promotion in the young collection, the JVM has no choice but to fallback to ParallelOld (which is 100% STW). Effectively, the allocation pressure can be so high that CMS doesn’t have time to finish processing the old generation before all the space to accommodate newly promoted objects. In order to prevent this issue, by default CMS starts a collection at 75% of it’s capacity.</p>
+
+<h4 id="fallback-to-parallelgc">Fallback to ParallelGC</h4>
+
+<p>Another common issue that leads to CMF is the heap fragmentation. CMS does not support compact Tenured and this means that after a collection, the free space in Tenured is not a single contiguous block, and objects that are promoted have to be filed into the gaps between existing threads. If this is not possible, in this case, there’s a fallback to ParallelGC. Known for being good at avoiding memory fragmentation, ParallelGC takes action and does a fully STW and compacting collection.</p>
+
+<h3 id="conclusion">Conclusion</h3>
+
+<p>At the time it was designed, CMS was the solution to overcome the long STW pauses that the previous algorithms implied. But as a highly and sophisticated algorithm, CMS caused a lot of complexities to the GC code base in JDK. It counts with around 72 configuration flags, on top of the common 50 which makes it hard to understand and tune. Oracle’s answer for this problem was G1, that is much easier to tune and avoids the problems described before. CMS was <a href="https://openjdk.java.net/jeps/363">removed</a> from JDK on release 14. As the default algorithm since Java 9, G1 it’s <a href="https://openjdk.java.net/jeps/307">constantly improving</a> and more than ever, Oracle is pushing new solutions for garbage collection. Some of the new GC solutions mentioned in the introduction, don’t really represent a better solution or a replacement for G1, but a different view or approach that might work better for different and very specific use cases. At the time of this writing, Oracle is preparing the release of JDK 15 bundled with <a href="https://openjdk.java.net/jeps/377">ZGC</a> and <a href="https://openjdk.java.net/jeps/379">Shenandoah</a> production-ready. It’s case to say, the future of Java is now!</p>
+
+<p><strong>References</strong></p>
+
+<ul>
+  <li><a href="https://docs.oracle.com/en/java/javase/index.html">Java Platform, Standard Edition Documentation</a> (Java Virtual Machine Guide &amp; Garbage Collection Tuning)</li>
+  <li>Benjamin J Evans, James Gough &amp; Chris Newland (2018) Optimizing Java: Practical techniques for improving JVM application performance</li>
+</ul>
+
+  </div>
+  
+
+</article>
+
+      </div>
+    </div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col">
+        <p class="copyright">All rights reserved © Raul Estrela 2021</p>
+      </div>
+    </div>
+  </div>
+</footer>
+
+  </body>
+</html>

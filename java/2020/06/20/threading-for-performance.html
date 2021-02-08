@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="robots" content="index,follow">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Threading for Performance</title>
+  <meta name="description" content="In the Information Age, we all want answers from the web as quick as possible. Compared to the past software systems nowadays need to process a huge amount o...">
+  <link rel="stylesheet" href="/blog/css/main.css">
+  <link rel="canonical" href="https://estrela.me/blog/java/2020/06/20/threading-for-performance.html">
+  <link rel="alternate" type="application/rss+xml" title="estrela.me * blog" href="https://estrela.me/blog/feed.xml">
+  <link rel="icon" href="/blog/favicon.ico" type="image/x-icon">
+  <meta property="og:title" content="Raul Estrela">
+  <meta property="og:site_name" content="Raul Estrela Blog">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://estrela.me/blog">
+  <meta property="og:image" content="/assets/profile_image.png">
+  <meta property="og:description" content="@rsaestrela personal website">
+  <meta itemprop="name" content="Raul Estrela">
+  <meta itemprop="description" content="@rsaestrela personal website">
+  <meta itemprop="image" content="https://estrela.me/img/profile_image.png">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-180685972-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'UA-180685972-1');
+</script>
+</head>
+
+  <body>
+    <header class="header">
+  <div class="wrapper">
+    <a href="/blog/">
+      <div class="profile-image"></div>
+    </a>
+    <div class="title">Thoughts written down, by Raul Estrela</div>
+  </div>
+</header>
+
+    <header class="bar">
+  <div class="wrapper">
+    <span class="link-button">
+      <a class="text-button" target="_blank" href="/blog/feed.xml">subscribe rss</a>
+    </span>
+    <span class="link-button">
+      <a class="text-button" target="_blank" href="https://estrela.me">estrela.me</a>
+    </span>
+    <span class="link-button">
+      <a class="text-button" target="_blank" href="https://github.com/rsaestrela">github</a>
+    </span>
+    <span class="link-button">
+      <a class="text-button" target="_blank" href="https://www.linkedin.com/in/raulsilvaestrela/">linkedin</a>
+    </span>
+    <span class="link-button">
+      <a class="text-button" target="_blank" href="https://dev.to/rsaestrela">dev.to</a>
+    </span>
+  </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Threading for Performance</h1>
+    <p class="post-meta"><time datetime="2020-06-20T00:00:00+00:00" itemprop="datePublished">Jun 20, 2020</time></p>
+  </header>
+  <div class="post-content" itemprop="articleBody">
+    <p>In the <em>Information Age</em>, we all want answers from the web as quick as possible. Compared to the past software systems nowadays need to process a huge amount of data, in very different hardware contexts where cloud based systems are a reality. Now, the market demands responsive, loosely coupled, scalable, resilient and message-driven systems.</p>
+
+<p>When Architecting a system for performance, multitasking is a must. The obsolete single-threaded applications are not an option anymore and modern systems need to implement multi-threading mechanisms as the answer to the market performance needs. Although it might sound a great idea, traditional multi-threading comes at a cost. It carries natural and inner performance disadvantages usually referred as <em>performance overhead</em>.</p>
+
+<p>The performance overhead associated with multi-threading, regards mainly to the fact that, the CPU has to switch the execution between threads. When switching, it has to save the register state of a thread and load the state of a different thread. Modern processors are very good at this as they implement high performance caches. But caches are finite. When caches are full, processors must evict data to make room for new data. Thus software threads tend to evict each other’s data, and the cache fighting from too many threads can hurt performance. As with caches, time slicing accessing Virtual Memory causes threads to fight each other for real memory for its stack and private data structures. In extreme cases, there can be so many threads that the program even can run out of virtual memory.</p>
+
+<p>While the hardware industry is making remarkable progress improving hardware systems, the software industry is in constant adaptation, visioning and implementing different approaches to take the best out of hardware. It might sound confusing, but this has shown to be the symbiosis of success.</p>
+
+<h2 id="reactive">Reactive</h2>
+
+<p>Reactive is a <em>buzzword</em>, you should have heard about it - and you might think this is something new. The term has been in use since the paper, <em>The Reactive Engine</em> was made available by Alan Kay in 1969. A few years later, in 1997 Conal Elliot and Paul Hudak came up with <em>Function Reactive Animation</em>. But it was only in 2014 when this topic was rekindled with the <em>Reactive Manifesto</em>.</p>
+
+<p>Through constant change, organizations had to reinvent their software products.</p>
+
+<blockquote>
+  <p><em>These changes are happening because application requirements have changed dramatically in recent years. Only a few years ago a large application had tens of servers, seconds of response time, hours of offline maintenance and gigabytes of data. Today applications are deployed on everything from mobile devices to cloud-based clusters running thousands of multi-core processors. Users expect millisecond response times and 100% up-time. Data is measured in Petabytes. Today’s demands are simply not met by yesterday’s software architectures.</em></p>
+
+  <p><a href="https://www.reactivemanifesto.org/">https://www.reactivemanifesto.org/</a></p>
+</blockquote>
+
+<p>Reactive applications focuses on the systems that react to the events, the varying loads, and multiple users. It also react effectively to all the conditions, whether it’s successful or has failed to process requests. The Reactive Manifesto came as attempt to define a new industry standard. It defines four characteristics to design Reactive Systems.</p>
+
+<blockquote>
+  <p><em>We believe that a coherent approach to systems architecture is needed, and we believe that all necessary aspects are already recognized individually: we want systems that are Responsive, Resilient, Elastic and Message Driven. We call these Reactive Systems.</em></p>
+
+  <p><a href="https://www.reactivemanifesto.org/">https://www.reactivemanifesto.org/</a></p>
+</blockquote>
+
+<h3 id="reactive-programming">Reactive Programming</h3>
+
+<p>With the advent of Reactive Systems, the industry of software conceived a new paradigm called Reactive Programming.</p>
+
+<blockquote>
+  <p><em>RP designs code in such a way that the problem is divided into many small steps, where each step or task can be executed asynchronously without blocking each other. Once each task is done , it’s composed together to produce a complete flow without getting bound in the input or output.</em></p>
+
+  <p><strong>Tejaswini Mandar Jog</strong> - Reactive Programming With Java 9</p>
+</blockquote>
+
+<p>In another words, Reactive Programming disseminates the idea of instead of creating a thread for each blocking concurrent task, a dedicated thread commonly called <em>event loop</em> looks to all the tasks that are assigned to threads in a non-reactive model, and processes each of them on the same process. This new paradigm reduced the problem of context switch, by imposing an asynchronous and non-blocking mindset. As a result, the performance and the utilization of resources on a multi-core is increased and it provided a more maintainable approach to deal with asynchronism.</p>
+
+<p>But writing high-performance, efficient, scalable and correct Reactive software is hard. With the rise of Functional Programming a new paradigm was born - Functional Reactive Programming. An abstraction on top of imperative systems that allows to program asynchronous and event-driven functional programs avoiding the pitfalls (like the well known <em>callback hell</em>) of reactive imperative code. It established a concrete functional approach to model programs behavior and how behavior changes according to events.</p>
+
+<p>It was the beginning of a new movement called <em>Reactive Extensions</em>. An API for asynchronous programming with observable streams of events. Reactor, RxJava or RxNet just to name a few are new set of tools created under the name of Reactive Extensions or ReactiveX. Combining ideas from the <em>Observer</em> pattern, <em>Iterator</em> pattern and Functional programming , reactive extensions allow <em>composing asynchronous and event-based programs by using observable sequences</em>.</p>
+
+<p>In 2017, Java 9 introduced the Flow API, a <em>Reactive Streams</em> specification as a standard to build Stream-oriented libraries for reactive and non-blocking JVM-based systems. The library RxJava was adapted to depend on this this new specification.</p>
+
+<h2 id="coroutines">Coroutines</h2>
+
+<p>Although Reactive is a very powerful concept when applied to programming , libraries didn’t provide the right solution as a general approach to manage asynchronous processing. While frameworks are still embracing, reinventing mechanisms and providing better reactive integrations, some natural pitfalls such as complexity, natural performance overhead and code readability forced the Industry to come up with a more practical and simple approach. <em>Jetbrains</em> and the community reinvented an old concept and the result was - Coroutines.</p>
+
+<p>Coroutines are commonly described as lightweight threads. It’s a fact that they are conceptually very similar to threads, however they do not mirror the traditional threading that involves native system calls. They run on native threads and they do not depend on any synchronization mechanism such as mutexes or semaphores. The natural performance overheard is then nullified and this makes them highly performance and convenient to implement multitasking on applications.</p>
+
+<p>Although in a total different context, Kotlin Coroutines can be seen like a very well designed and sophisticated variation of existing solutions - such as the well know <em>Promise</em> (ES6) , 2 years latter improved with ECMAScript 2017 with the <em>async</em> and <em>await</em> mechanisms.</p>
+
+<p>Coroutines are great as they provide a very solid multitasking context that allows <em>structured concurrency</em>, <em>scopes</em>, <em>cancellation &amp; timeouts</em>, <em>composition</em> and <em>asynchronous flows</em> just to name a few treats - allied with a notable syntax and a fast learning curve.</p>
+
+<div class="language-kotlin highlighter-rouge"><pre class="highlight"><code><span class="k">fun</span> <span class="nf">main</span><span class="p">(</span><span class="n">args</span><span class="p">:</span> <span class="n">Array</span><span class="p">&lt;</span><span class="n">String</span><span class="p">&gt;)</span> <span class="p">=</span> <span class="n">runBlocking</span> <span class="p">{</span>
+    <span class="n">launch</span> <span class="p">{</span>
+        <span class="n">printWorld</span><span class="p">()</span>
+    <span class="p">}</span>
+    <span class="n">println</span><span class="p">(</span><span class="s">"Hello,"</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="k">private</span> <span class="n">suspend</span> <span class="k">fun</span> <span class="nf">printWorld</span><span class="p">()</span> <span class="p">{</span>
+    <span class="n">delay</span><span class="p">(</span><span class="m">1000L</span><span class="p">)</span>
+    <span class="n">println</span><span class="p">(</span><span class="s">"World!"</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<p>This increased incredibly the appetite to migrate existing Reactive solutions to Coroutines. Specially in Android development where the existing approach was complex and a simpler and more convenient way to make applications flow asynchronous was necessary to improve the performance of the applications.</p>
+
+<p>Please note the code block above. As the <em>suspend</em> function is asynchronous, <code class="highlighter-rouge">runBlocking</code> scope blocks the current thread for waiting the asynchronous code to complete. There’s no magic, and a synchronous, blocking I/O or mutex call will remain thread-blocking outside of the coroutine scope. So, what’s next?</p>
+
+<h2 id="project-loom">Project Loom</h2>
+
+<p>The current JVM model, creates an operating system thread per Java thread. Project Loom is a proposal to enhance the JVM and the Java Library in order to support the ability to create lightweight threads that run on top of conventional threads.</p>
+
+<p>The lightweight threads will be called <strong>Fibers</strong> and the coroutine logic will be called <strong>Continuation</strong>. Similar to Kotlin <code class="highlighter-rouge">suspend</code> functions, Continuations will have an entry point and a <em>yield</em> point that corresponds to the point were the execution can be suspended. If the caller resumes the continuation, the control returns to the last point. When a Fiber encounters a blocking call, it won’t unblock the native thread - but the Fiber is suspended until this action to complete switching the execution to a different Fiber. Fibers run in a thread pool, yielding cooperatively. Switching execution between Fibers is a cheap operation.</p>
+
+<p>Reactive and asynchronous programming usually lead to cognitive complexity, lost of context and control. In opposition, Loom’s approach is not based in a high level asynchronous mechanism. It will give the simplicity of synchronous operations with the performance cost of asynchronous. Blocking executions executed in Fibers will use non-blocking I/O under the hood. For the developer, it will be much easier to develop and maintain high performance systems since the complexity will “reside” at JVM level, leveraging this functionality consistently to different platforms.</p>
+
+<p>I really recommend to read the <a href="https://cr.openjdk.java.net/~rpressler/loom/Loom-Proposal.html">Loom Proposal</a>.</p>
+
+<p>OpenJDK already gave a preview early access to project Loom. Some <a href="https://dzone.com/articles/a-new-java-with-a-stronger-fiber">tests already performed</a> accuse that with Loom it will be possible to create 1000 times more fibers than threads, and creating them is 70 times faster.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>World Economy requires more than ever performance at a low cost. In a <em>Age</em> where data and computing is in exponential grown, Architecting software systems with Performance in mind is a must.</p>
+
+<p>We usually say that <em>Technology is Eating the World</em>. In a World more aware of sustainability, optimization was never so important - this is happening in many different industries. And software is not an exception to the rule. We have to improve, otherwise the World will eat us.</p>
+
+  </div>
+  
+
+</article>
+
+      </div>
+    </div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col">
+        <p class="copyright">All rights reserved © Raul Estrela 2021</p>
+      </div>
+    </div>
+  </div>
+</footer>
+
+  </body>
+</html>

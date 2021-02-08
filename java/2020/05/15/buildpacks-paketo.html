@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="robots" content="index,follow">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Buildpacks with Paketo</title>
+  <meta name="description" content="Containerization of applications has been a massive trend in the IT Industry. They provide a logical packaging mechanism in which applications can be abstrac...">
+  <link rel="stylesheet" href="/blog/css/main.css">
+  <link rel="canonical" href="https://estrela.me/blog/java/2020/05/15/buildpacks-paketo.html">
+  <link rel="alternate" type="application/rss+xml" title="estrela.me * blog" href="https://estrela.me/blog/feed.xml">
+  <link rel="icon" href="/blog/favicon.ico" type="image/x-icon">
+  <meta property="og:title" content="Raul Estrela">
+  <meta property="og:site_name" content="Raul Estrela Blog">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://estrela.me/blog">
+  <meta property="og:image" content="/assets/profile_image.png">
+  <meta property="og:description" content="@rsaestrela personal website">
+  <meta itemprop="name" content="Raul Estrela">
+  <meta itemprop="description" content="@rsaestrela personal website">
+  <meta itemprop="image" content="https://estrela.me/img/profile_image.png">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-180685972-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'UA-180685972-1');
+</script>
+</head>
+
+  <body>
+    <header class="header">
+  <div class="wrapper">
+    <a href="/blog/">
+      <div class="profile-image"></div>
+    </a>
+    <div class="title">Thoughts written down, by Raul Estrela</div>
+  </div>
+</header>
+
+    <header class="bar">
+  <div class="wrapper">
+    <span class="link-button">
+      <a class="text-button" target="_blank" href="/blog/feed.xml">subscribe rss</a>
+    </span>
+    <span class="link-button">
+      <a class="text-button" target="_blank" href="https://estrela.me">estrela.me</a>
+    </span>
+    <span class="link-button">
+      <a class="text-button" target="_blank" href="https://github.com/rsaestrela">github</a>
+    </span>
+    <span class="link-button">
+      <a class="text-button" target="_blank" href="https://www.linkedin.com/in/raulsilvaestrela/">linkedin</a>
+    </span>
+    <span class="link-button">
+      <a class="text-button" target="_blank" href="https://dev.to/rsaestrela">dev.to</a>
+    </span>
+  </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Buildpacks with Paketo</h1>
+    <p class="post-meta"><time datetime="2020-05-15T00:00:00+00:00" itemprop="datePublished">May 15, 2020</time></p>
+  </header>
+  <div class="post-content" itemprop="articleBody">
+    <p>Containerization of applications has been a massive trend in the IT Industry. They provide a logical packaging mechanism in which applications can be abstracted from the environment they run, allowing them to be deployed consistently. The separation of concerns they provide, makes the developer’s life easier as they can focus more in the application and product development.</p>
+
+<p>In opposition to visualizing a complete hardware stack, tools like Docker and Kubernetes quickly established a new standard in the Industry to develop, pack and deploy applications. IT operations teams are now more productive and focused in delivery, building future proof solutions that are flexible and which integration is possible among different cloud service providers such as Google Cloud and Amazon Web Services.</p>
+
+<p>Organizations should be aware of this. As most of these tools are free and open source - running applications in containers can be substantially cheaper than traditional setups and they have major importance when it comes to attract talent.</p>
+
+<h2 id="developer">Developer</h2>
+
+<p>NoOps is a reality. The effort IT operations needed to keep software running is being minimized and they are now more than ever focused in the improvement of processes and all the operational overhead these new setups require. For Developers, the transition to this new reality can be cumbersome. In more complex environments, tools like Docker and Kubernetes can be extremely hard to master and in some situations can simply be an overkill. In the last few years, organizations have been working in new tools no minimize the cognitive burden, improve consistency and deliver applications faster. One of this tools is <strong>Buildpacks</strong>.</p>
+
+<h3 id="containerization-with-docker">Containerization with Docker</h3>
+
+<p>Containerization of applications using Docker showed a strong appetite to popularize Docker images based on <strong>Dockerfiles</strong>. These Docker images, created by Organizations and Individuals have been helping us to quickly containerize applications and setup their dependencies.</p>
+
+<p>As a developer, I must say that there should be a Docker image available in Internet for most of our purposes. Although, this practice lead the industry to create different solutions, that are hard to maintain and the lead it comes to inconsistencies on upstream dependencies and performance issues - when it comes to Java applications this approach has a major <a href="https://spring.io/blog/2020/01/27/creating-docker-images-with-spring-boot-2-3-0-m1">performance impact</a>.</p>
+
+<h3 id="cloud-native-buildpacks">Cloud Native Buildpacks</h3>
+
+<p>Cloud Native Buildpacks are part of the answer to this problem. The concept of <em>Buildpack</em> was first conceived by Heroku is 2011, since then they have been adopted by Cloud Foundry and and other PaaS. However the need to create a standard took Pivotal and Heroku to start the Cloud Native Buildpacks project in the beginning of 2018.</p>
+
+<blockquote>
+  <p>The project aims to unify the buildpack ecosystems with a platform-to-buildpack contract that is well-defined and that incorporates learnings from maintaining production-grade buildpacks for years at both Pivotal and Heroku. Cloud Native Buildpacks embrace modern container standards, such as the OCI image format. They take advantage of the latest capabilities of these standards, such as cross-repository blob mounting and image layer “rebasing” on Docker API v2 registries.</p>
+</blockquote>
+
+<h4 id="paketo-buildpacks">Paketo Buildpacks</h4>
+
+<p>Paketo are Modular Buildpacks written in Go that leverage and contribute to the Cloud Native Buildpacks framework. They provide different packaging flavors for different kind of systems, written using different programming languages, for different purposes.</p>
+
+<h3 id="lets-pack-push-and-deploy">Lets Pack, Push and Deploy!</h3>
+
+<p>Lets put all this in practice. Consider building a Spring Boot Maven project - we will pack the application, push the container image to Google Cloud Repository, and deploy it with Google Kubernetes Engine.</p>
+
+<blockquote>
+  <p>Intermediate steps such as tools installation, project creation and authentication won’t be described. The detailed information can be found in every corner of the Internet.</p>
+</blockquote>
+
+<h4 id="pack">Pack</h4>
+
+<p>The process of packing (or packaging) involves the usage of the <em>pack CLI</em>. It will run a process upon Docker that automatically discovers the dependencies required for the application to be built. In the root folder of your application project run:</p>
+
+<p><code class="highlighter-rouge">pack build gcr.io/{GC_APP_ID}/app --builder cloudfoundry/cnb:bionic</code></p>
+
+<blockquote>
+  <p>A <code class="highlighter-rouge">builder</code> must be specified - it bundles all the information how to build the app, such as buildpacks and build-time image, as well as executes the buildpacks against the application source code.</p>
+</blockquote>
+
+<p>It will detect and fetch all the buildpacks needed and will orchestrate their execution. Note the packeto-buildpacks in action.</p>
+
+<div class="language-text highlighter-rouge"><pre class="highlight"><code>===&gt; DETECTING
+...
+[detector] paketo-buildpacks/bellsoft-liberica 2.3.1
+[detector] paketo-buildpacks/maven             1.2.0
+[detector] paketo-buildpacks/executable-jar    1.2.1
+[detector] paketo-buildpacks/apache-tomcat     1.1.1
+[detector] paketo-buildpacks/dist-zip          1.2.1
+[detector] paketo-buildpacks/spring-boot       2.2.4
+===&gt; BUILDING
+[builder] Paketo Maven Buildpack 1.2.0
+[builder] [INFO] Scanning for projects...
+...
+</code></pre>
+</div>
+
+<h4 id="push">Push</h4>
+
+<p>Once the image is built, pushing it with Docker to Google Cloud Repository is exactly the same as pushing it to a custom container registry or the official and well know, DockerHub.</p>
+
+<p><code class="highlighter-rouge">docker push gcr.io/{GC_APP_ID}/app</code></p>
+
+<h4 id="deploy">Deploy</h4>
+
+<p>Creating a Kubernetes cluster is pretty straightforward with <code class="highlighter-rouge">gcloud</code>.</p>
+
+<p><code class="highlighter-rouge">gcloud container clusters create app-cluster --num-nodes=2</code></p>
+
+<p>Using <code class="highlighter-rouge">kubectl</code> is possible to create a Kubernetes deployment. This will trigger the deployment of the image on the cluster previously created.</p>
+
+<p><code class="highlighter-rouge">kubectl create deployment app --image=gcr.io/{GC_APP_ID}/app</code></p>
+
+<h4 id="final-steps">Final steps</h4>
+
+<p>Containers on Google Kubernetes Engine are not accessible from the Internet because they do not have external IP addresses, unless the are explicitly exposed. Again with <code class="highlighter-rouge">kubectl</code>:</p>
+
+<p><code class="highlighter-rouge">kubectl expose deployment app --type=LoadBalancer --port 80 --target-port 8080</code></p>
+
+<p>Know it’s time to get the external IP address to access your application.</p>
+
+<p><code class="highlighter-rouge">kubectl get service</code></p>
+
+<div class="language-text highlighter-rouge"><pre class="highlight"><code>NAME         CLUSTER-IP      EXTERNAL-IP     PORT(S)          AGE
+app          10.8.123.102    207.0.108.3     80:30877/TCP     15m
+</code></pre>
+</div>
+
+<p>…and there you go! The application is up and running accepting connections on port 80 through the external IP provided.</p>
+
+<h3 id="conclusion">Conclusion</h3>
+
+<p>Every developer that had to build and maintain a Dockerfile, knows the struggle. The good news are that Buildpacks are a reality and this is adding big improvements in terms of consistency, performance and security to our builds. Another good point is that Spring Boot 2.3.0 will bring Buildpacks support out of the box - <code class="highlighter-rouge">pack</code> won’t be necessary anymore and build process will be possible simply running <code class="highlighter-rouge">mvn spring-boot:build-image</code>.</p>
+
+  </div>
+  
+
+</article>
+
+      </div>
+    </div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col">
+        <p class="copyright">All rights reserved © Raul Estrela 2021</p>
+      </div>
+    </div>
+  </div>
+</footer>
+
+  </body>
+</html>

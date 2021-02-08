@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="robots" content="index,follow">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demystifying Thread Safety</title>
+  <meta name="description" content="* The content of this post was originally published at Parser Digital Community *">
+  <link rel="stylesheet" href="/blog/css/main.css">
+  <link rel="canonical" href="https://estrela.me/blog/java/2020/07/14/demystifying-thread-safety.html">
+  <link rel="alternate" type="application/rss+xml" title="estrela.me * blog" href="https://estrela.me/blog/feed.xml">
+  <link rel="icon" href="/blog/favicon.ico" type="image/x-icon">
+  <meta property="og:title" content="Raul Estrela">
+  <meta property="og:site_name" content="Raul Estrela Blog">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://estrela.me/blog">
+  <meta property="og:image" content="/assets/profile_image.png">
+  <meta property="og:description" content="@rsaestrela personal website">
+  <meta itemprop="name" content="Raul Estrela">
+  <meta itemprop="description" content="@rsaestrela personal website">
+  <meta itemprop="image" content="https://estrela.me/img/profile_image.png">
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-180685972-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'UA-180685972-1');
+</script>
+</head>
+
+  <body>
+    <header class="header">
+  <div class="wrapper">
+    <a href="/blog/">
+      <div class="profile-image"></div>
+    </a>
+    <div class="title">Thoughts written down, by Raul Estrela</div>
+  </div>
+</header>
+
+    <header class="bar">
+  <div class="wrapper">
+    <span class="link-button">
+      <a class="text-button" target="_blank" href="/blog/feed.xml">subscribe rss</a>
+    </span>
+    <span class="link-button">
+      <a class="text-button" target="_blank" href="https://estrela.me">estrela.me</a>
+    </span>
+    <span class="link-button">
+      <a class="text-button" target="_blank" href="https://github.com/rsaestrela">github</a>
+    </span>
+    <span class="link-button">
+      <a class="text-button" target="_blank" href="https://www.linkedin.com/in/raulsilvaestrela/">linkedin</a>
+    </span>
+    <span class="link-button">
+      <a class="text-button" target="_blank" href="https://dev.to/rsaestrela">dev.to</a>
+    </span>
+  </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Demystifying Thread Safety</h1>
+    <p class="post-meta"><time datetime="2020-07-14T00:00:00+00:00" itemprop="datePublished">Jul 14, 2020</time></p>
+  </header>
+  <div class="post-content" itemprop="articleBody">
+    <p><em>* The content of this post was originally published at <a href="https://parserdigital.com/demystifying-thread-safety-2/">Parser Digital Community</a> *</em></p>
+
+<p>Modern programming languages support easy multi-threading out of the box and multitasking has become synonymous with efficiency. Multi-threading grants the ability to simultaneously run or execute multiple tasks, represented as Threads - and it can take different shapes. Multiple patterns were identified, different techniques were conceived and mechanisms have been exhaustively enhanced to simplify and increase the performance of the code in multi-threaded scenarios.</p>
+
+<p>Although it is a powerful feature, multi-threading comes with some common disadvantages. The first disadvantage is the inner <strong>difficulty and complexity</strong> of the subject. As a sensitive topic, it requires maximum attention to detail - is very easy to get wrong and this may lead to <strong>unpredictable and incorrect results</strong>. In worse cases, issues like the well known <em>deadlock</em> can be happen and its misuse can have negative impact on software systems. Another disadvantage id the <strong>performance overhead</strong> than can bring - the creation of native threads have a natural system cost.</p>
+
+<p>As a Software Engineer, one of the most intriguing things that can happen, is the inability and incapacity of accepting the reality without being able to understand, replicate and validate it. For this reason, I consider the <strong>complex to debug and test</strong> the major threat that multi-threading carries.</p>
+
+<h2 id="the-mystery">The Mystery</h2>
+
+<p>In single and distributed systems, multi-threading issues happen often. This usually occurs when these systems share mutable data - an this can come in many different shapes. Accessing databases, orchestrating process between distributed instances… Sometimes the simple absence of <a href="https://docs.hazelcast.org/docs/3.2/manual/html/lock.html">good locking systems</a> spread the occurrence of race conditions. Database systems already incorporate fine grained concurrency lock based control mechanisms that keep consistency of data. However, most of the times that doesn’t avoid getting locking exceptions that some of us seem to struggle to understand.</p>
+
+<h3 id="multi-threading-in-action">Multi-threading in Action</h3>
+
+<p>For the sake of simplicity lets analyses the well known Single Pattern implemented in Java.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">class</span> <span class="nc">MySingleton</span> <span class="o">{</span>
+
+    <span class="kd">private</span> <span class="kd">static</span> <span class="n">MySingleton</span> <span class="n">mySingleton</span><span class="o">;</span>
+
+    <span class="kd">public</span> <span class="kd">static</span> <span class="kd">synchronized</span> <span class="n">MySingleton</span> <span class="nf">getMySingleton</span><span class="o">()</span> <span class="o">{</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">mySingleton</span> <span class="o">==</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">mySingleton</span> <span class="o">=</span> <span class="k">new</span> <span class="n">MySingleton</span><span class="o">();</span>
+        <span class="o">}</span>
+        <span class="k">return</span> <span class="n">mySingleton</span><span class="o">;</span>
+    <span class="o">}</span>
+
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<p>At the end, this is not the most accurate example in terms of performance, although, this is considered a way of obtaining a reasonable <em>thread-safe</em> singleton implementation. It uses the lightweight synchronization mechanism on the <em>getter</em> method to guarantee synchronized access to the singleton instance. Have you ever tried to prove this is true?</p>
+
+<h3 id="keeping-it-simple">Keeping it Simple</h3>
+
+<p>In the <em>Java Concurrent Utilities Framework</em> ecosystem, threads can be created by extending the <code class="highlighter-rouge">Thread</code> class or implementing the <code class="highlighter-rouge">Runnable</code> interface. The last lacks the ability to make the thread being able to return a value. For supporting this feature, the <em>Callable</em> interface exists. So, consider the following <em>native</em> thread abstration that simply gets the instance of the singleton class.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">MyThread</span> <span class="kd">implements</span> <span class="n">Callable</span><span class="o">&lt;</span><span class="n">MySingleton</span><span class="o">&gt;</span> <span class="o">{</span>
+
+    <span class="kd">private</span> <span class="kd">final</span> <span class="n">CountDownLatch</span> <span class="n">latch</span><span class="o">;</span>
+
+    <span class="kd">public</span> <span class="nf">MyThread</span><span class="o">(</span><span class="n">CountDownLatch</span> <span class="n">latch</span><span class="o">)</span> <span class="o">{</span>
+        <span class="k">this</span><span class="o">.</span><span class="na">latch</span> <span class="o">=</span> <span class="n">latch</span><span class="o">;</span>
+    <span class="o">}</span>
+
+    <span class="nd">@Override</span>
+    <span class="kd">public</span> <span class="n">MySingleton</span> <span class="nf">call</span><span class="o">()</span> <span class="kd">throws</span> <span class="n">InterruptedException</span> <span class="o">{</span>
+        <span class="n">latch</span><span class="o">.</span><span class="na">await</span><span class="o">();</span>
+        <span class="k">return</span> <span class="n">MySingleton</span><span class="o">.</span><span class="na">getMySingleton</span><span class="o">();</span>
+    <span class="o">}</span>
+
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<p>Please note the parameter <code class="highlighter-rouge">latch</code>. Restating the source Java-docs, a <code class="highlighter-rouge">CountDownLatch</code> is <em>a synchronization aid that allows one or more threads to wait until a set of operations being performed in other threads completes</em>. This isn’t obviously necessary to get the singleton instance, but it help to will provide the necessary synchronization in the next steps.</p>
+
+<p>The execution method <code class="highlighter-rouge">call</code> simply invokes and returns the singleton instance.</p>
+
+<h2 id="the-truth-is-worth-it">The Truth is Worth It</h2>
+
+<p>Consider the following unit test. It recreates a multi-threading scenario where 2 threads instances are created and submitted to a <em>Thread Pool</em>.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="nd">@Test</span>
+<span class="kd">public</span> <span class="kt">void</span> <span class="nf">testMySingleton</span><span class="o">()</span> <span class="kd">throws</span> <span class="n">ExecutionException</span><span class="o">,</span> <span class="n">InterruptedException</span> <span class="o">{</span>
+
+    <span class="n">ExecutorService</span> <span class="n">executorService</span> <span class="o">=</span> <span class="n">Executors</span><span class="o">.</span><span class="na">newFixedThreadPool</span><span class="o">(</span><span class="mi">2</span><span class="o">);</span>
+
+    <span class="n">CountDownLatch</span> <span class="n">latch</span> <span class="o">=</span> <span class="k">new</span> <span class="n">CountDownLatch</span><span class="o">(</span><span class="mi">1</span><span class="o">);</span>
+
+    <span class="n">Future</span><span class="o">&lt;</span><span class="n">MySingleton</span><span class="o">&gt;</span> <span class="n">singleton1</span> <span class="o">=</span> <span class="n">executorService</span><span class="o">.</span><span class="na">submit</span><span class="o">(</span><span class="k">new</span> <span class="n">MyThread</span><span class="o">(</span><span class="n">latch</span><span class="o">));</span>
+    <span class="n">Future</span><span class="o">&lt;</span><span class="n">MySingleton</span><span class="o">&gt;</span> <span class="n">singleton2</span> <span class="o">=</span> <span class="n">executorService</span><span class="o">.</span><span class="na">submit</span><span class="o">(</span><span class="k">new</span> <span class="n">MyThread</span><span class="o">(</span><span class="n">latch</span><span class="o">));</span>
+
+    <span class="n">latch</span><span class="o">.</span><span class="na">countDown</span><span class="o">();</span>
+
+    <span class="n">assertEquals</span><span class="o">(</span><span class="n">singleton1</span><span class="o">.</span><span class="na">get</span><span class="o">().</span><span class="na">hashCode</span><span class="o">(),</span> <span class="n">singleton2</span><span class="o">.</span><span class="na">get</span><span class="o">().</span><span class="na">hashCode</span><span class="o">());</span>
+
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<p>The <code class="highlighter-rouge">CountDownLatch</code> mentioned before is initialized with 1 will hold the execution and of both threads, that will be simultaneously released when the <code class="highlighter-rouge">countDown()</code> is invoked. This strategy is <em>deffered</em> - it implies capturing the value returned by both threads encapsulated in a <em>Future</em>. Assertion is based on the object <em>hashCode</em>. Same <em>hashCode</em> implies same object instance.</p>
+
+<p>Executing this test doesn’t lead to surprising results. The singleton instantiated twice is <em>thread-safe</em> - the first thread will acquire the lock in the object constructor and instantiate the static field. The second thread will simply return the instance.</p>
+
+<h3 id="silver-lining">Silver Lining</h3>
+
+<p>From the beginning, a <em>thread-safe</em> scenario was considered. Removing the <code class="highlighter-rouge">synchronised</code> keyword from the singleton <em>getter</em> method should, hence, put in cause thread safety. Executing the same test with the suggested change leads to nondeterministic failures because the Singleton is created twice.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">java</span><span class="o">.</span><span class="na">lang</span><span class="o">.</span><span class="na">AssertionError</span><span class="o">:</span> 
+<span class="n">Expected</span> <span class="o">:</span><span class="mi">125993742</span>
+<span class="n">Actual</span>   <span class="o">:</span><span class="mi">1192108080</span>
+</code></pre>
+</div>
+
+<p>This is one of the reasons why the Singleton pattern is already considered an <em>anti-pattern</em>. Without proper synchronization, the implementation ridiculously nullifies its own purpose.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>Thread safety is a hard subject but it doesn’t necessarily have to be mystery for any developer. While avoiding multi-threading issues at all is a big challenge, being able to understand them <em>a priori</em> brings value. As shown possible issues and their impact can be mitigated during development leading to more solid and scalable systems. You might think that the scenario presented is <code class="highlighter-rouge">oversimplified and optimistic</code> , however when applied to more complex tasks the same rules apply. I always keep this pieces of code close.</p>
+
+  </div>
+  
+
+</article>
+
+      </div>
+    </div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col">
+        <p class="copyright">All rights reserved © Raul Estrela 2021</p>
+      </div>
+    </div>
+  </div>
+</footer>
+
+  </body>
+</html>
